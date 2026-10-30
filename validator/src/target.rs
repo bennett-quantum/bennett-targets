@@ -44,9 +44,6 @@ fn controls(v: &Value) -> Result<()> {
     Ok(())
 }
 fn params(v: &Value) -> Result<bool> {
-    if v.is_null() {
-        return Ok(false);
-    }
     if arr(v)? != &vec![Value::String("theta".into())] {
         return Err("§8.3: params must be [theta]".into());
     }
@@ -122,8 +119,8 @@ impl Target {
         }
         for (i, w) in widths.iter().enumerate() {
             let w = expr::integer(w)?;
-            if ![32, 64].contains(&w) || widths[..i].contains(&widths[i]) {
-                return Err("§8.3: unique pointer widths 32 or 64 required".into());
+            if w == 0 || widths[..i].contains(&widths[i]) {
+                return Err("§8.3: unique positive pointer widths required".into());
             }
         }
         let resources = obj(&d["resources"])?;
@@ -188,7 +185,7 @@ impl Target {
             )?;
             self.op(&g["op"])?;
             controls(&g["controls"])?;
-            params(&g["params"])?;
+            g.get("params").map(params).transpose()?;
             if arr(&g["classes"])?.is_empty() {
                 return Err("§8.3: class pattern cannot be empty".into());
             }
@@ -219,7 +216,7 @@ impl Target {
             fields(r, &["op", "controls"], &["params"])?;
             self.op(&r["op"])?;
             controls(&r["controls"])?;
-            let param = params(&r["params"])?;
+            let param = r.get("params").map(params).transpose()?.unwrap_or(false);
             let vars = if param {
                 vec!["k", "c", "theta"]
             } else {
@@ -380,6 +377,21 @@ impl Target {
         c: usize,
         eps: Rational,
     ) -> Result<Option<Charge>> {
+        self.native_parameters(op, classes, k, c, eps, false)
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn native_parameters(
+        &self,
+        op: &str,
+        classes: &[&str],
+        k: usize,
+        c: usize,
+        eps: Rational,
+        parametric: bool,
+    ) -> Result<Option<Charge>> {
+        for cls in classes {
+            self.class(cls)?;
+        }
         if c < k {
             return Err("§8.3: total controls must include own controls".into());
         }
@@ -389,7 +401,10 @@ impl Target {
             ("eps".into(), eps.clone()),
         ]);
         for g in arr(&self.document["gates"])? {
-            if g["op"] != op || !covers(&g["controls"], c)? {
+            if g["op"] != op
+                || !covers(&g["controls"], c)?
+                || g.get("params").is_some() != parametric
+            {
                 continue;
             }
             let pattern = arr(&g["classes"])?;

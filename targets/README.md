@@ -1,9 +1,21 @@
-# targets
+# ISA 0.8 targets
 
-Each `*.json` file is a target description in RFC 8785 canonical form (sorted
-keys, no whitespace, no trailing newline); `target_hash` is the SHA-256 of the
-file bytes. Schema: bennett-isa-spec section 8.
+Three hand-derived canonical descriptions, each with a `.provenance.md` sidecar
+covering every numeric field. All hardware values are explicitly illustrative.
 
-`example-surface-code-d17.json` is an ILLUSTRATIVE example, with made-up round
-numbers. It is not a real vendor model. Time units are seconds, here stylised
-as code-cycle multiples; `qubit_second` rates are per-class and set to 1.
+- `ideal-all-to-all.json`: exact ideal simulator with unbounded logical wires.
+- `superconducting-grid-illustrative.json`: finite data/buffer classes and coarse
+  microsecond timings. The intended 4×4 grid connectivity is blocked by the absent
+  topology schema (b-targets-dd3); JSON is its class/timing projection only.
+- `trapped-ion-illustrative.json`: finite all-to-all chain with serial contention.
+
+Stored bytes are RFC 8785 with no trailing LF. Run the validator and
+`scripts/verify.py` headlessly. Every model executes the published registers
+fixture's two-toggle launch in the VM, checking native gate count and peak usage.
+The original bootstrap d17 file used obsolete string expressions and a gate map;
+it was removed rather than passed off as a validated surface-code model.
+
+These descriptions are examples for vendor contributions; actual vendor models
+need public numeric sources, capability validation and scheme correctness evidence.
+Native lifted/oracle decomposition and true grid placement await published ISA
+contracts; they remain acceptance blockers, not supported hardware claims.

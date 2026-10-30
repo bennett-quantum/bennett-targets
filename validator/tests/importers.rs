@@ -65,3 +65,25 @@ fn azure_times_and_errors_are_never_silent() {
     bad["qubitParams"]["oneQubitGateTime"] = json!("20 fortnight");
     assert!(importers::azure(&base(), &bad).is_err());
 }
+
+#[test]
+fn importer_rejects_unit_mismatch_and_preserves_huge_counts() {
+    let input =
+        bennett_targets_validator::json::parse(r#"{"t":123456789012345678901234567890}"#).unwrap();
+    let out = importers::qualtran(&base(), &input).unwrap();
+    assert_eq!(
+        out["quantities"]["qualtran.t"],
+        json!("123456789012345678901234567890")
+    );
+    let mut target = base().document;
+    target["resources"]["time"]["unit"] = json!("ns");
+    let target =
+        Target::load(&bennett_targets_validator::json::canonical(&target).unwrap()).unwrap();
+    let source = bennett_targets_validator::json::parse(include_str!(
+        "../../importers/fixtures/azure-qubit-params.json"
+    ))
+    .unwrap();
+    assert!(importers::azure(&target, &source)
+        .unwrap_err()
+        .contains("unit"));
+}

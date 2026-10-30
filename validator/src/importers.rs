@@ -54,11 +54,20 @@ pub fn qualtran(base: &Target, input: &Value) -> Result<Value> {
     for field in fields {
         let zero = json!(0);
         let n = input.get(field).unwrap_or(&zero);
-        expr::integer(n).map_err(|e|format!("import: GateCounts.{field}: concrete nonnegative integral count required; symbolic input needs bindings: {e}"))?;
+        let count = expr::nonnegative(n).map_err(|e|format!("import: GateCounts.{field}: concrete nonnegative integral count required; symbolic input needs bindings: {e}"))?;
+        if !count.is_integer() {
+            return Err(format!(
+                "import: GateCounts.{field}: integral count required"
+            ));
+        }
         let resource = format!("qualtran.{field}");
         insert_resource(&mut d, &resource, field)?;
         map[field] = json!([resource, 1]);
-        quantities[&resource] = n.clone();
+        quantities[&resource] = if count > expr::decimal("9007199254740991")? {
+            json!(count.to_integer().to_string())
+        } else {
+            n.clone()
+        };
         coverage[field] =
             json!({"resource":resource,"factor":1,"defaulted":input.get(field).is_none()});
     }
@@ -67,7 +76,7 @@ pub fn qualtran(base: &Target, input: &Value) -> Result<Value> {
         d,
         coverage,
         quantities,
-        json!({"format":"qualtran.resource_counting.GateCounts.asdict","input":input,"base_target_hash":base.hash}),
+        json!({"format":"qualtran.resource_counting.GateCounts.asdict","input_json":input.to_string(),"base_target_hash":base.hash}),
     )
 }
 fn seconds(v: &Value, field: &str) -> Result<Value> {
@@ -117,11 +126,23 @@ fn seconds(v: &Value, field: &str) -> Result<Value> {
     } else {
         format!("0.{}{}", "0".repeat(scale as usize - digits.len()), digits)
     };
-    json::parse(&out)
+    let v = json::parse(&out)?;
+    let canonical = json::canonical(&v)?;
+    if expr::decimal(&canonical)? != n {
+        return Err(format!(
+            "import: {field}: converted duration cannot be preserved exactly as a JCS number"
+        ));
+    }
+    Ok(v)
 }
 /// Legacy Azure estimator qubitParams JSON. Hardware data overlays an explicit
 /// base target; stochastic probabilities are never treated as operator-norm eps.
 pub fn azure(base: &Target, input: &Value) -> Result<Value> {
+    if base.document["resources"]["time"]["unit"] != "second"
+        && base.document["resources"]["time"]["unit"] != "s"
+    {
+        return Err("import: base time unit must be second or s".into());
+    }
     reject_unknown(input, &["qubitParams"], "")?;
     let q = input
         .get("qubitParams")
@@ -225,6 +246,6 @@ pub fn azure(base: &Target, input: &Value) -> Result<Value> {
         d,
         mapping,
         quantities,
-        json!({"format":"Azure legacy estimator qubitParams","name":name,"input":input,"base_target_hash":base.hash,"measurement_time_semantics":"imported hardware quantity; ISA 0.8 has no separate measurement duration field; no operational latency is inferred"}),
+        json!({"format":"Azure legacy estimator qubitParams","name":name,"input_json":input.to_string(),"base_target_hash":base.hash,"measurement_time_semantics":"imported hardware quantity; ISA 0.8 has no separate measurement duration field; no operational latency is inferred"}),
     )
 }

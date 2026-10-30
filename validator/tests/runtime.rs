@@ -125,3 +125,93 @@ fn imported_quantity_conversion() {
         expr::decimal("6").unwrap()
     );
 }
+
+#[test]
+fn parameters_and_predicate_limits_are_checked() {
+    let mut d = target().document;
+    d["gates"][0]["op"] = json!("rz");
+    d["gates"][0]["params"] = json!(["theta"]);
+    d["gates"][0]["controls"] = json!({"min":0,"max":"unbounded"});
+    d["capabilities"]["max_predicate_depth"] = json!(0);
+    let t = Target::load(&json::canonical(&d).unwrap()).unwrap();
+    assert!(t
+        .expand("rz", &["fast"], 0, 0, expr::decimal("0").unwrap(), None)
+        .is_err());
+    assert!(t
+        .expand(
+            "rz",
+            &["fast", "fast"],
+            0,
+            1,
+            expr::decimal("0").unwrap(),
+            Some(expr::decimal("0.5").unwrap())
+        )
+        .is_err());
+    assert!(t
+        .expand(
+            "rz",
+            &["fast"],
+            0,
+            0,
+            expr::decimal("0").unwrap(),
+            Some(expr::decimal("0.5").unwrap())
+        )
+        .is_ok());
+}
+
+#[test]
+fn cz_scheme_uses_two_targets_and_zero_own_controls() {
+    let mut d = target().document;
+    d["gates"][0]["op"] = json!("cz");
+    d["gates"][0]["controls"] = json!({"min":0,"max":0});
+    // A SWAP-shaped alias is only an expansion probe, not a correctness claim.
+    d["schemes"] = json!([{"name":"two-target-probe","realises":{"op":"swap","controls":{"min":0,"max":0}},"ancillae":{"count":0,"state":"clean","class":"fast"},"template":[{"gate":"cz","wires":["t","t2"]}]}]);
+    let t = Target::load(&json::canonical(&d).unwrap()).unwrap();
+    let leaves = t
+        .expand(
+            "swap",
+            &["fast", "fast"],
+            0,
+            0,
+            expr::decimal("0").unwrap(),
+            None,
+        )
+        .unwrap();
+    assert_eq!(leaves[0].wires, vec![0, 1]);
+    d["schemes"][0]["realises"]["op"] = json!("cz");
+    d["gates"][0]["op"] = json!("swap");
+    d["schemes"][0]["template"][0]["gate"] = json!("swap");
+    let t = Target::load(&json::canonical(&d).unwrap()).unwrap();
+    assert!(t
+        .expand(
+            "cz",
+            &["fast", "fast"],
+            0,
+            0,
+            expr::decimal("0").unwrap(),
+            None
+        )
+        .is_ok());
+}
+
+#[test]
+fn repeat_indices_can_be_signed_in_parameter_expressions() {
+    let mut d = target().document;
+    d["gates"][0]["op"] = json!("rz");
+    d["gates"][0]["params"] = json!(["theta"]);
+    d["gates"][0]["controls"] = json!({"min":0,"max":0});
+    d["schemes"] = json!([{"name":"signed-repeat","realises":{"op":"rx","controls":{"min":0,"max":0},"params":["theta"]},"ancillae":{"count":0,"state":"clean","class":"fast"},"template":[{"gate":"rz","wires":["t"],"params":[{"var":"i"}],"repeat":{"var":"i","from":-1,"to":1}}]}]);
+    let t = Target::load(&json::canonical(&d).unwrap()).unwrap();
+    let leaves = t
+        .expand(
+            "rx",
+            &["fast"],
+            0,
+            0,
+            expr::decimal("0").unwrap(),
+            Some(expr::decimal("0.5").unwrap()),
+        )
+        .unwrap();
+    assert_eq!(leaves.len(), 2);
+    assert_eq!(leaves[0].params[0], expr::decimal("-1").unwrap());
+}

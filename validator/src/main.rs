@@ -5,6 +5,9 @@ fn run() -> Result<serde_json::Value, String> {
     if args.len() < 2 || args.len() > 3 {
         return Err("usage: bennett-targets-validator validate|canon <absolute-file>".into());
     }
+    if args.len() == 3 && !args[0].starts_with("import-") {
+        return Err("unexpected third argument".into());
+    }
     let text = std::fs::read_to_string(&args[1]).map_err(|e| format!("{}: {e}", args[1]))?;
     match args[0].as_str() {
         "import-qualtran" | "import-azure" => {
@@ -26,7 +29,6 @@ fn run() -> Result<serde_json::Value, String> {
         }
         "canon" => {
             let (bytes, hash) = canon(&text)?;
-            Target::load(&bytes)?;
             Ok(json!({"canonical":bytes,"target_hash":hash}))
         }
         _ => Err("unknown command; expected validate or canon".into()),

@@ -1,0 +1,254 @@
+{
+  "fixture_bytes": 6,
+  "fixture_hashes": 6,
+  "vm_agreements": [
+    "E-epsilon-zero-entry",
+    "E-epsilon-zero-exact",
+    "E-jcs-target-hash",
+    "E-matching-first-entry",
+    "E-mbu-must-be-false",
+    "E-target-staged-probe",
+    "E-noncanonical",
+    "pointer-width-capabilities",
+    "mbu",
+    "capacity-fraction",
+    "dirty-negative",
+    "rate-variable",
+    "rate-unknown-class",
+    "missing-mandatory-resource",
+    "unknown-resource-kind",
+    "unknown-gate",
+    "cost-unknown-resource",
+    "cost-negative",
+    "cost-unbound",
+    "cost-arity",
+    "cost-unknown-operator",
+    "cost-divide-zero",
+    "epsilon-exact-reference",
+    "gate-unknown-class",
+    "controls-reversed",
+    "capability-negative",
+    "measurement-not-bool",
+    "objective-unknown-resource",
+    "import-unknown-resource",
+    "qram-unbound"
+  ],
+  "vm_divergences": [
+    {
+      "name": "canonical-small-exponent",
+      "validator_exit": 0,
+      "vm_exit": 1,
+      "validator_error": "",
+      "vm_error": "\u00a78.1: target must be in RFC 8785 canonical form"
+    }
+  ],
+  "rejection_diagnostics": [
+    {
+      "name": "E-epsilon-zero-entry",
+      "validator": "{\"error\":\"\u00a78.1: an entry with epsilon 0 MUST NOT reference eps or log2inv_eps\"}",
+      "vm": "\u00a78.1: epsilon zero entry references eps"
+    },
+    {
+      "name": "E-mbu-must-be-false",
+      "validator": "{\"error\":\"\u00a78.3 / \u00a76.4: target capability mbu is reserved and MUST be false\"}",
+      "vm": "\u00a76.4: capabilities.mbu must be false"
+    },
+    {
+      "name": "E-noncanonical",
+      "validator": "{\"error\":\"\u00a78.1: A target is a JSON document in RFC 8785 canonical form (no trailing LF)\"}",
+      "vm": "\u00a78.1: target must be in RFC 8785 canonical form"
+    },
+    {
+      "name": "mbu",
+      "validator": "{\"error\":\"\u00a78.3 / \u00a76.4: target capability mbu is reserved and MUST be false\"}",
+      "vm": "\u00a76.4: capabilities.mbu must be false"
+    },
+    {
+      "name": "capacity-fraction",
+      "validator": "{\"error\":\"\u00a78.3: count must be an integer\"}",
+      "vm": "\u00a78.1: index/count must be a nonnegative integer"
+    },
+    {
+      "name": "dirty-negative",
+      "validator": "{\"error\":\"\u00a78.1: costs MUST be nonnegative and finite\"}",
+      "vm": "\u00a78.1: costs must be nonnegative and finite"
+    },
+    {
+      "name": "rate-variable",
+      "validator": "{\"error\":\"\u00a78.1: numbers only in this context\"}",
+      "vm": "\u00a78.1: expected a JSON number"
+    },
+    {
+      "name": "rate-unknown-class",
+      "validator": "{\"error\":\"\u00a78.3: unknown class missing\"}",
+      "vm": "\u00a78.2: unknown rate class"
+    },
+    {
+      "name": "missing-mandatory-resource",
+      "validator": "{\"error\":\"\u00a78.2: Mandatory peak_qubits (peak)\"}",
+      "vm": "\u00a78.2: mandatory resource peak_qubits must have kind peak"
+    },
+    {
+      "name": "unknown-resource-kind",
+      "validator": "{\"error\":\"\u00a78.2: Mandatory time (time)\"}",
+      "vm": "\u00a78.2: mandatory resource time must have kind time"
+    },
+    {
+      "name": "unknown-gate",
+      "validator": "{\"error\":\"\u00a78.3: unknown gate \\\"invented\\\"\"}",
+      "vm": "\u00a717.2: unknown gate name invented"
+    },
+    {
+      "name": "cost-unknown-resource",
+      "validator": "{\"error\":\"\u00a78.2: undeclared resource missing\"}",
+      "vm": "\u00a78.2: undeclared resource missing"
+    },
+    {
+      "name": "cost-negative",
+      "validator": "{\"error\":\"\u00a78.1: costs MUST be nonnegative and finite\"}",
+      "vm": "\u00a78.1: costs must be nonnegative and finite"
+    },
+    {
+      "name": "cost-unbound",
+      "validator": "{\"error\":\"\u00a78.1: referencing a variable that the context does not bind is a load-time error: unbound theta\"}",
+      "vm": "\u00a78.1: unbound theta"
+    },
+    {
+      "name": "cost-arity",
+      "validator": "{\"error\":\"\u00a78.1: + requires 2 args\"}",
+      "vm": "\u00a78.1: + requires 2 arguments"
+    },
+    {
+      "name": "cost-unknown-operator",
+      "validator": "{\"error\":\"\u00a78.1: unknown or unbound expression operator\"}",
+      "vm": "\u00a78.1: unknown expression operator pow"
+    },
+    {
+      "name": "cost-divide-zero",
+      "validator": "{\"error\":\"\u00a78.1: division by zero is a load-time error\"}",
+      "vm": "\u00a78.1: division by zero"
+    },
+    {
+      "name": "epsilon-exact-reference",
+      "validator": "{\"error\":\"\u00a78.1: an entry with epsilon 0 MUST NOT reference eps or log2inv_eps\"}",
+      "vm": "\u00a78.1: epsilon zero entry references eps"
+    },
+    {
+      "name": "gate-unknown-class",
+      "validator": "{\"error\":\"\u00a78.3: unknown class unknown\"}",
+      "vm": "\u00a78.3: unknown class unknown"
+    },
+    {
+      "name": "controls-reversed",
+      "validator": "{\"error\":\"\u00a78.3: inclusive controls range min exceeds max\"}",
+      "vm": "\u00a78.3: reversed control range"
+    },
+    {
+      "name": "capability-negative",
+      "validator": "{\"error\":\"\u00a78.1: costs MUST be nonnegative and finite\"}",
+      "vm": "\u00a78.1: costs must be nonnegative and finite"
+    },
+    {
+      "name": "measurement-not-bool",
+      "validator": "{\"error\":\"\u00a78.3: expected bool\"}",
+      "vm": "\u00a78: expected boolean"
+    },
+    {
+      "name": "objective-unknown-resource",
+      "validator": "{\"error\":\"\u00a78.2: undeclared resource absent\"}",
+      "vm": "\u00a78.3: unknown objective resource"
+    },
+    {
+      "name": "import-unknown-resource",
+      "validator": "{\"error\":\"\u00a78.2: undeclared resource missing\"}",
+      "vm": "\u00a78.3: invalid import resource mapping"
+    },
+    {
+      "name": "qram-unbound",
+      "validator": "{\"error\":\"\u00a78.1: referencing a variable that the context does not bind is a load-time error: unbound k\"}",
+      "vm": "\u00a78.1: unbound k"
+    }
+  ],
+  "reference_unavailable": [
+    "E-epsilon-zero-entry",
+    "E-epsilon-zero-exact",
+    "E-jcs-target-hash",
+    "E-matching-first-entry",
+    "E-mbu-must-be-false",
+    "E-target-staged-probe"
+  ],
+  "model_runs": [
+    {
+      "name": "ideal-all-to-all.json",
+      "hash": "d602ef018d413ffcdea8f0334acbb0b6dd373ba09a325665afb181fa9f6e0cbc",
+      "resources": {
+        "gate_count": "2",
+        "peak_qubits": {
+          "data": "2"
+        },
+        "qubit_second": {
+          "data": "14"
+        },
+        "time": "9"
+      }
+    },
+    {
+      "name": "superconducting-grid-illustrative.json",
+      "hash": "c4325a53d82a33437f462a81677381f6222d267655cd4b1fc7de2c0155f3f7a9",
+      "resources": {
+        "gate_count": "2",
+        "peak_qubits": {
+          "buffer": "2",
+          "data": "0"
+        },
+        "qubit_second": {
+          "buffer": "0.00018",
+          "data": "0"
+        },
+        "time": "0.00011"
+      }
+    },
+    {
+      "name": "trapped-ion-illustrative.json",
+      "hash": "f50a46caa5947ec7ed9f3ec179352175372f116ccbfb175b63e20eb456776dee",
+      "resources": {
+        "gate_count": "2",
+        "peak_qubits": {
+          "data": "2"
+        },
+        "qubit_second": {
+          "data": "0.00005"
+        },
+        "time": "0.000027"
+      }
+    }
+  ],
+  "importer_runs": [
+    "qualtran-gate-counts.json",
+    "azure-qubit-params.json"
+  ],
+  "spec_example_target_runs": [
+    {
+      "target": "ideal-all-to-all.json",
+      "state": "BLOCKED",
+      "reason": "\u00a78/\u00a711: unimplemented: gate-level expansion for lift.const.i8 (milestone 4); required ref library is unpublished (bennett-vm-47t)"
+    },
+    {
+      "target": "superconducting-grid-illustrative.json",
+      "state": "BLOCKED",
+      "reason": "\u00a78/\u00a711: unimplemented: gate-level expansion for lift.const.i8 (milestone 4); required ref library is unpublished (bennett-vm-47t)"
+    },
+    {
+      "target": "trapped-ion-illustrative.json",
+      "state": "BLOCKED",
+      "reason": "\u00a78/\u00a711: unimplemented: gate-level expansion for lift.const.i8 (milestone 4); required ref library is unpublished (bennett-vm-47t)"
+    }
+  ],
+  "reference_semantic_agreements": 0,
+  "circuits_target_cli": "unavailable: documented CLI exposes no target input",
+  "acceptance": "BLOCKED: reference target CLI, topology, eps_decade, unpublished ref expansion and consumer divergences",
+  "binary_sha256": {
+    "/home/tobias/Projects/bennett-workspace/bennett-vm/target/debug/bennett-vm": "f0e6320f2cd7fdd6b36567938f5372c2e5dcbaa13487208d0c1443fa4d066427",
+    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "2e67862edb87abc932ce6d10d9609c3b154c64fd1103dd364924958519b0546a"
+  }
+}

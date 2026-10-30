@@ -76,7 +76,7 @@ pub fn check(v: &Value, vars: &[&str], tables: &Value) -> Result<()> {
         }
         match o["index"].as_str() {
             Some("k") if vars.contains(&"k") => return Ok(()),
-            Some("eps_decade") if vars.contains(&"eps") => return Err("§8.1: eps_decade indexing undefined in ISA 0.8; blocked by b-targets eps-decade (ISA b-isa-spec-f31)".into()),
+            Some("eps_decade") if vars.contains(&"eps") => return Err("§8.1: eps_decade indexing undefined in ISA 0.8; blocked by b-targets-w8o (ISA b-isa-spec-f31)".into()),
             _ => return Err("§8.1: table index k or eps_decade must be bound".into())
         }
     }

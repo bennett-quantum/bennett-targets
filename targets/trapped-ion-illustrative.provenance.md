@@ -16,7 +16,7 @@ ISA 0.8 §8 defines all field semantics.
 | gates.*.controls.min/max: 0, 1, 2 or unbounded | own-control arities from ISA §4.4; ideal model permits inherited controls; mcx has variable controls |
 | gates one-wire time: 1e-05 seconds | illustrative; x/h/s/sdg/t/tdg/rx/ry/rz |
 | gates two-wire time: 0.0002 seconds | illustrative; cx/cz/swap |
-| ccx time, where present: 0.0012000000000000001 seconds | illustrative six times two-wire time, not a decomposition claim |
+| ccx time, where present: 0.0012 seconds | illustrative six times two-wire time, not a decomposition claim |
 | max_parallel: 1 | illustrative simultaneous gate limit |
 | classical_step_time: 1e-06 seconds | illustrative controller step |
 | measurement.feedforward_latency: 0.0001 seconds | illustrative classical feedforward delay |

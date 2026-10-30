@@ -14,3 +14,23 @@ fn suite_e_semantic_negatives_red() {
         assert!(validate(&s).is_err(), "accepted {name}");
     }
 }
+
+#[test]
+fn pointer_width_list_is_a_capability_not_a_fixed_enum() {
+    let mut d = bennett_targets_validator::json::parse(include_str!(
+        "../../../bennett-isa-spec/conformance/cases/E/E-jcs-target-hash/target.json"
+    ))
+    .unwrap();
+    d["ptr_widths_supported"] = serde_json::json!([16, 32, 128]);
+    assert!(validate(&bennett_targets_validator::json::canonical(&d).unwrap()).is_ok());
+}
+
+#[test]
+fn optional_params_is_an_array_when_present() {
+    let mut d = bennett_targets_validator::json::parse(include_str!(
+        "../../../bennett-isa-spec/conformance/cases/E/E-jcs-target-hash/target.json"
+    ))
+    .unwrap();
+    d["gates"][0]["params"] = serde_json::Value::Null;
+    assert!(validate(&bennett_targets_validator::json::canonical(&d).unwrap()).is_err());
+}

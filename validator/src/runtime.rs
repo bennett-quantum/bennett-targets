@@ -18,10 +18,7 @@ pub struct Leaf {
 pub type Resources = BTreeMap<String, BTreeMap<String, Rational>>;
 fn index(n: Rational) -> Result<usize> {
     if !n.is_integer() || n.is_negative() {
-        return Err(
-            "§8.3: wire indices, ancilla counts and repeat bounds must be nonnegative integers"
-                .into(),
-        );
+        return Err("§8.3: wire indices and ancilla counts must be nonnegative integers".into());
     }
     n.to_integer()
         .to_usize()
@@ -37,7 +34,7 @@ fn object(v: &Value) -> Result<&serde_json::Map<String, Value>> {
 }
 fn own(op: &str, n: usize) -> Result<usize> {
     Ok(match op {
-        "cx" | "cz" => 1,
+        "cx" => 1,
         "ccx" => 2,
         "mcx" => n.checked_sub(1).ok_or("§8.3: mcx needs target")?,
         _ => 0,
@@ -56,7 +53,14 @@ impl Target {
         for cls in classes {
             self.class(cls)?;
         }
-        if let Some(charge) = self.native(op, classes, k, c, eps.clone())? {
+        let inherited = c.checked_sub(k).ok_or("§8.3: c must include k")?;
+        let limit = &self.document["capabilities"]["max_predicate_depth"];
+        if limit != "unbounded" && inherited > expr::integer(limit)? {
+            return Err("§8.3: max_predicate_depth exceeded".into());
+        }
+        if let Some(charge) =
+            self.native_parameters(op, classes, k, c, eps.clone(), theta.is_some())?
+        {
             return Ok(vec![Leaf {
                 op: op.into(),
                 wires: (0..classes.len()).collect(),
@@ -81,13 +85,8 @@ impl Target {
             }
             let count = index(expr::eval(&s["ancillae"]["count"], &env, tables)?)?;
             let targets = if op == "swap" || op == "cz" { 2 } else { 1 };
-            // CZ's own control is also its first operand, with t/t2 per §8.3.
-            let target_start = if op == "cz" {
-                c.checked_sub(k).ok_or("§8.3: c < k")?
-            } else {
-                c
-            };
-            let required = if op == "cz" { c + 1 } else { c + targets };
+            let target_start = c;
+            let required = c + targets;
             if classes.len() != required {
                 return Err("§8.3: operand classes must cover controls and targets".into());
             }
@@ -95,20 +94,20 @@ impl Target {
             let mut leaves = Vec::new();
             for g in array(&s["template"])? {
                 let (from, to) = if let Some(r) = g.get("repeat") {
-                    (
-                        index(expr::eval(&r["from"], &env, tables)?)?,
-                        index(expr::eval(&r["to"], &env, tables)?)?,
-                    )
+                    let from = expr::eval(&r["from"], &env, tables)?;
+                    let to = expr::eval(&r["to"], &env, tables)?;
+                    if !from.is_integer() || !to.is_integer() {
+                        return Err("§8.3: repeat bounds must be integers".into());
+                    }
+                    (from.to_integer(), to.to_integer())
                 } else {
-                    (0, 1)
+                    (0.into(), 1.into())
                 };
-                if to < from {
-                    return Err("§8.3: repeat bounds [from,to) reversed".into());
-                }
-                for i in from..to {
+                let mut i = from;
+                while i < to {
                     let mut env = env.clone();
                     if g.get("repeat").is_some() {
-                        env.insert("i".into(), Rational::from_integer(i.into()));
+                        env.insert("i".into(), Rational::from_integer(i.clone()));
                     }
                     let mut wires = Vec::new();
                     let mut cls = Vec::new();
@@ -150,7 +149,7 @@ impl Target {
                     }
                     let op = g["gate"].as_str().unwrap();
                     let k = own(op, wires.len())?;
-                    let charge=self.native(op,&cls,k,k,eps.clone())?.ok_or("§8.3: Every template gate MUST itself match a gates entry (schemes do not nest)")?;
+                    let charge=self.native_parameters(op,&cls,k,k,eps.clone(),g.get("params").is_some())?.ok_or("§8.3: Every template gate MUST itself match a gates entry (schemes do not nest)")?;
                     let params = g
                         .get("params")
                         .map(|p| {
@@ -167,6 +166,7 @@ impl Target {
                         charge,
                         params,
                     });
+                    i += 1;
                 }
             }
             return Ok(leaves);

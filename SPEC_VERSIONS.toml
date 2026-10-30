@@ -1,4 +1,4 @@
-status = "milestone-1-in-progress"
+status = "milestone-1-blocked"
 
 [specs]
 "bennett-isa-spec" = "0.8"
