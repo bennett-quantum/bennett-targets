@@ -1,6 +1,6 @@
 {
-  "fixture_bytes": 6,
-  "fixture_hashes": 6,
+  "fixture_bytes": 7,
+  "fixture_hashes": 7,
   "vm_agreements": [
     "E-epsilon-zero-entry",
     "E-epsilon-zero-exact",
@@ -31,17 +31,10 @@
     "measurement-not-bool",
     "objective-unknown-resource",
     "import-unknown-resource",
-    "qram-unbound"
+    "qram-unbound",
+    "canonical-small-exponent"
   ],
-  "vm_divergences": [
-    {
-      "name": "canonical-small-exponent",
-      "validator_exit": 0,
-      "vm_exit": 1,
-      "validator_error": "",
-      "vm_error": "\u00a78.1: target must be in RFC 8785 canonical form"
-    }
-  ],
+  "vm_divergences": [],
   "rejection_diagnostics": [
     {
       "name": "E-epsilon-zero-entry",
@@ -175,7 +168,8 @@
     "E-jcs-target-hash",
     "E-matching-first-entry",
     "E-mbu-must-be-false",
-    "E-target-staged-probe"
+    "E-target-staged-probe",
+    "E-topology-grid-09"
   ],
   "model_runs": [
     {
@@ -227,6 +221,39 @@
     "qualtran-gate-counts.json",
     "azure-qubit-params.json"
   ],
+  "published_unavailable": [
+    {
+      "id": "E-ref-09-copy-native",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete library contract gaps b-isa-spec-cbk / b-isa-spec-8sc; draft checkpoint only"
+    },
+    {
+      "id": "E-ref-09-qxor-witness",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog is a separate job and ref publication follows acceptance"
+    },
+    {
+      "id": "E-ref-09-ripple",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and b-isa-spec-cbk binding repair required"
+    },
+    {
+      "id": "E-topology-grid-09",
+      "reason": "unavailable pending 0.9: b-isa-spec-wr7; optional topology and physical placements require accepted 0.9"
+    }
+  ],
+  "partial_checks": [
+    {
+      "id": "E-topology-grid-09",
+      "canonical_hash": "960cee71e88da141cc6c2b13cab3f28fce1d50c006e67446aadb592e2bfd0882",
+      "validator_error": "{\"error\":\"\u00a78.3 schema: unknown field topology\"}",
+      "vm_error": "\u00a78: unknown field topology",
+      "scope": "bytes/hash and 0.8 schema rejection only; topology semantics unavailable",
+      "spec": "\u00a78.3 lists the target fields without topology; \u00a78.2: gates on disjoint wires MAY overlap unless max_parallel or a topology is declared; all-to-all over logical wires."
+    }
+  ],
+  "suite_e_cases": {
+    "executable": 16,
+    "unavailable": 4,
+    "total": 20
+  },
   "spec_example_target_runs": [
     {
       "target": "ideal-all-to-all.json",
@@ -246,9 +273,27 @@
   ],
   "reference_semantic_agreements": 0,
   "circuits_target_cli": "unavailable: documented CLI exposes no target input",
-  "acceptance": "BLOCKED: reference target CLI, topology, eps_decade, unpublished ref expansion and consumer divergences",
+  "acceptance_blockers": [
+    {
+      "id": "b-targets-dd3",
+      "reason": "Topology semantics: \u00a78.2 mentions topology but \u00a78.3 publishes no topology/placement schema; E-topology-grid-09 requires accepted 0.9 (b-isa-spec-wr7)."
+    },
+    {
+      "id": "b-targets-w8o",
+      "reason": "eps_decade: \u00a78.1 names this index without defining decade selection in accepted ISA 0.8 (b-isa-spec-f31)."
+    },
+    {
+      "id": "b-targets-7dv",
+      "reason": "Unpublished ref expansion library: all three target-backed normative inc8 runs refuse lift.const.i8 expansion (\u00a78/\u00a711; b-isa-spec-8r4 / bennett-vm-47t); E-ref-09-qxor-witness is not the complete catalog."
+    },
+    {
+      "id": "b-targets-38r",
+      "reason": "Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements. Circuits also documents no target CLI."
+    }
+  ],
+  "acceptance": "BLOCKED: topology semantics, eps_decade, unpublished ref expansion library, reference target CLI surface",
   "binary_sha256": {
-    "/home/tobias/Projects/bennett-workspace/bennett-vm/target/debug/bennett-vm": "f0e6320f2cd7fdd6b36567938f5372c2e5dcbaa13487208d0c1443fa4d066427",
-    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "2e67862edb87abc932ce6d10d9609c3b154c64fd1103dd364924958519b0546a"
+    "/home/tobias/Projects/bennett-workspace/bennett-vm/target/debug/bennett-vm": "10229209577ee1d0da74daea89c3fa922f27f636736b8d06a61e4f5c7ce570a3",
+    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "c2f3f9a10a4d4c141244f408d2a2a3fa21ffaaa9b0506f28898660b37a3367b0"
   }
 }

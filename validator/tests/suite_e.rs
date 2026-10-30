@@ -4,7 +4,7 @@ use bennett_targets_validator::{
     json, Target,
 };
 use serde_json::{json, Value};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 fn read(p: impl AsRef<Path>) -> Value {
     json::parse(&std::fs::read_to_string(p).unwrap()).unwrap()
 }
@@ -17,10 +17,18 @@ fn rational(v: &Value) -> expr::Rational {
 }
 #[test]
 fn all_sixteen_published_e_scenarios() {
-    let root =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bennett-isa-spec/conformance/cases/E");
+    let root = std::env::var_os("BENNETT_TARGETS_E_CASES")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bennett-isa-spec/conformance/cases/E")
+        });
+    check_scenarios(&root);
+}
+
+fn check_scenarios(root: &Path) {
     let mut count = 0;
-    for entry in std::fs::read_dir(&root).unwrap() {
+    let mut unavailable = Vec::new();
+    for entry in std::fs::read_dir(root).unwrap() {
         let path = entry.unwrap().path();
         let case = read(path.join("case.json"));
         let id = case["id"].as_str().unwrap();
@@ -170,8 +178,82 @@ fn all_sixteen_published_e_scenarios() {
                     }
                 }
             }
-            _ => panic!("unhandled published E scenario {id}"),
+            _ => {
+                let block = case
+                    .get("unavailable")
+                    .unwrap_or_else(|| panic!("unknown published case: {id}"));
+                // Validate the published reason before classifying an unknown case.
+                let reason = block["reason"].as_str().unwrap_or("");
+                assert!(
+                    !reason.trim().is_empty(),
+                    "{id}: published unavailable.reason must be non-empty"
+                );
+                assert!(
+                    reason.contains("b-isa-spec-") || reason.contains("b-targets-"),
+                    "{id}: published unavailable.reason must name a bead"
+                );
+                unavailable.push((id.to_owned(), reason.to_owned()));
+                count -= 1;
+            }
         }
     }
-    assert_eq!(count, 16);
+    assert_eq!(
+        count, 16,
+        "all sixteen executable ISA 0.8 scenarios must run"
+    );
+    unavailable.sort();
+    for (id, reason) in unavailable {
+        println!("UNAVAILABLE {id}: {reason}");
+    }
+}
+
+fn copy_cases(source: &Path, destination: &Path) {
+    std::fs::create_dir_all(destination).unwrap();
+    for entry in std::fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let path = destination.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_cases(&entry.path(), &path);
+        } else {
+            std::fs::copy(entry.path(), path).unwrap();
+        }
+    }
+}
+
+#[test]
+fn unknown_published_cases_require_a_reason_and_bead() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let scratch = root.join(format!("../.tmp/suite-e-corrupt-{}", std::process::id()));
+    copy_cases(
+        &root.join("../../bennett-isa-spec/conformance/cases/E"),
+        &scratch,
+    );
+    let id = "E-ref-09-qxor-witness";
+    let path = scratch.join(id).join("case.json");
+    let original = read(&path);
+    for (reason, error) in [
+        (Some("  "), "published unavailable.reason must be non-empty"),
+        (
+            Some("pending later work"),
+            "published unavailable.reason must name a bead",
+        ),
+        (None, "unknown published case"),
+    ] {
+        let mut case = original.clone();
+        if let Some(reason) = reason {
+            case["unavailable"]["reason"] = json!(reason);
+        } else {
+            case.as_object_mut().unwrap().remove("unavailable");
+        }
+        std::fs::write(&path, serde_json::to_string(&case).unwrap()).unwrap();
+        let failure = std::panic::catch_unwind(|| check_scenarios(&scratch))
+            .expect_err("a broken published unavailable marker must fail the suite");
+        let message = failure
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| failure.downcast_ref::<&str>().copied())
+            .unwrap();
+        assert!(message.contains(id) && message.contains(error), "{message}");
+    }
+    std::fs::remove_dir_all(scratch).unwrap();
 }

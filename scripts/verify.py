@@ -18,9 +18,35 @@ os.environ['TMPDIR'] = str(ROOT / '.tmp')
 VALIDATOR = ROOT / 'validator/target/debug/bennett-targets-validator'
 VM = ROOT.parent / 'bennett-vm/target/debug/bennett-vm'
 REF = ROOT.parent / 'bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref'
-FIXTURES = ROOT.parent / 'bennett-isa-spec/conformance/cases/E'
-OBJECT = ROOT.parent / 'bennett-isa-spec/reference-interpreter/tests/fixtures/registers.bisa'
-REPORT = {'fixture_bytes': 0, 'fixture_hashes': 0, 'vm_agreements': [], 'vm_divergences': [], 'rejection_diagnostics': [], 'reference_unavailable': [], 'model_runs': [], 'importer_runs': []}
+FIXTURES = Path(os.environ.get('BENNETT_TARGETS_E_CASES', ROOT.parent / 'bennett-isa-spec/conformance/cases/E'))
+OBJECT = ROOT.parent / 'bennett-isa-spec/conformance/cases/objects/registers.bisa'
+REPORT = {'fixture_bytes': 0, 'fixture_hashes': 0, 'vm_agreements': [], 'vm_divergences': [], 'rejection_diagnostics': [], 'reference_unavailable': [], 'model_runs': [], 'importer_runs': [], 'published_unavailable': [], 'partial_checks': []}
+
+# These sixteen scenarios remain executable in the validator's Rust suite-E test.
+# An upstream unavailable marker never removes one of these obligations.
+PUBLISHED_CASES = {
+    'E-aggregation', 'E-ast-division-by-zero', 'E-ast-eps-out-of-range',
+    'E-ast-log2inv', 'E-ast-unbound-variable', 'E-epsilon-zero-entry',
+    'E-epsilon-zero-exact', 'E-imports', 'E-jcs-target-hash',
+    'E-matching-first-entry', 'E-mbu-must-be-false',
+    'E-scheme-correctness-negative', 'E-scheme-expansion', 'E-table-index',
+    'E-target-staged-probe', 'E-timing-overlap',
+}
+
+def classify_published(case):
+    name = case['id']
+    if name in PUBLISHED_CASES:
+        return True
+    require('unavailable' in case, 'unknown published case: ' + name)
+    block = case['unavailable']
+    reason = block.get('reason') if isinstance(block, dict) else None
+    require(isinstance(reason, str) and reason.strip(),
+            name + ': published unavailable.reason must be non-empty')
+    require('b-isa-spec-' in reason or 'b-targets-' in reason,
+            name + ': published unavailable.reason must name a bead')
+    REPORT['published_unavailable'].append({'id': name, 'reason': reason})
+    print('UNAVAILABLE ' + name + ': ' + reason, flush=True)
+    return False
 
 def run(binary, *args):
     return subprocess.run([str(binary), *map(str, args)], text=True, capture_output=True, check=False)
@@ -62,13 +88,24 @@ def comparison(name, path):
                 'capability-negative':'nonnegative', 'measurement-not-bool':'bool',
                 'objective-unknown-resource':'resource', 'import-unknown-resource':'resource', 'qram-unbound':'unbound k',
             }
-            rule = rules[name]
+            rule = rules.get(name)
+            require(rule is not None, 'unknown published case: ' + name)
             require(rule in ours.stderr and rule in other.stderr, name + ': different rejection rule')
             REPORT['rejection_diagnostics'].append({'name':name,'validator':ours.stderr.strip(),'vm':other.stderr.strip()})
         REPORT['vm_agreements'].append(name)
     else:
-        require(name == 'canonical-small-exponent', name + ': NEW unclassified consumer divergence')
-        REPORT['vm_divergences'].append({'name': name, 'validator_exit': ours.returncode, 'vm_exit': other.returncode, 'validator_error': ours.stderr.strip(), 'vm_error': other.stderr.strip()})
+        raise AssertionError(name + ': consumer divergence: ' + repr((ours.returncode, ours.stderr, other.returncode, other.stderr)))
+
+cases = {}
+for path in sorted(FIXTURES.glob('*/case.json')):
+    case = json.loads(path.read_text())
+    name = case['id']
+    require(name == path.parent.name and name not in cases, str(path) + ': duplicate/mismatched id')
+    cases[name] = (case, classify_published(case))
+require(PUBLISHED_CASES <= cases.keys(), 'missing executable published cases: ' + repr(PUBLISHED_CASES - cases.keys()))
+# Catalogue counts; actual scenario execution is checked by validator/tests/suite_e.rs.
+REPORT['suite_e_cases'] = {'executable': len(PUBLISHED_CASES),
+                    'unavailable': len(REPORT['published_unavailable']), 'total': len(cases)}
 
 for path in sorted(FIXTURES.glob('*/target.json')):
     result = run(VALIDATOR, 'canon', path)
@@ -78,7 +115,30 @@ for path in sorted(FIXTURES.glob('*/target.json')):
     require(result['target_hash'] == hashlib.sha256(path.read_bytes()).hexdigest(), str(path))
     REPORT['fixture_bytes'] += 1
     REPORT['fixture_hashes'] += 1
-    comparison(path.parent.name, path)
+    case, executable = cases[path.parent.name]
+    stated_hash = case.get('expected_outcome', {}).get('target_hash')
+    if stated_hash is not None:
+        require(result['target_hash'] == stated_hash, str(path) + ': published target_hash mismatch')
+    if executable:
+        comparison(path.parent.name, path)
+    elif path.parent.name == 'E-topology-grid-09':
+        ours, other = validate(path), vm(path)
+        require(ours.returncode == other.returncode == 1 and not ours.stdout and not other.stdout,
+                'topology: changed ISA 0.8 schema behavior; re-evaluate runnable obligations')
+        require('§8.3' in ours.stderr and 'unknown field topology' in ours.stderr, ours.stderr)
+        require('§8' in other.stderr and 'unknown field topology' in other.stderr, other.stderr)
+        REPORT['partial_checks'].append({
+            'id': path.parent.name, 'canonical_hash': result['target_hash'],
+            'validator_error': ours.stderr.strip(), 'vm_error': other.stderr.strip(),
+            'scope': 'bytes/hash and 0.8 schema rejection only; topology semantics unavailable',
+            'spec': '§8.3 lists the target fields without topology; §8.2: gates on disjoint wires MAY overlap unless max_parallel or a topology is declared; all-to-all over logical wires.',
+        })
+    else:
+        # Do not silently hide a target that the validator can evaluate.
+        ours = validate(path)
+        require(ours.returncode == 1 and not ours.stdout and '§' in ours.stderr,
+                'unclassified runnable published target: ' + path.parent.name)
+        REPORT['partial_checks'].append({'id': path.parent.name, 'validator_error': ours.stderr.strip()})
     other = run(REF, 'run-program', OBJECT, 'allocation', '--args', '', '--target', path)
     require(other.returncode == 1 and not other.stdout and 'staged deliverable 9' in other.stderr and ('§8' in other.stderr or '§6.4' in other.stderr), other.stderr)
     REPORT['reference_unavailable'].append(path.parent.name)
@@ -185,7 +245,16 @@ for model in REPORT['model_runs']:
 
 REPORT['reference_semantic_agreements'] = 0
 REPORT['circuits_target_cli'] = 'unavailable: documented CLI exposes no target input'
-REPORT['acceptance'] = 'BLOCKED: reference target CLI, topology, eps_decade, unpublished ref expansion and consumer divergences'
+REPORT['acceptance_blockers'] = [
+    {'id': 'b-targets-dd3', 'reason': 'Topology semantics: §8.2 mentions topology but §8.3 publishes no topology/placement schema; E-topology-grid-09 requires accepted 0.9 (b-isa-spec-wr7).'},
+    {'id': 'b-targets-w8o', 'reason': 'eps_decade: §8.1 names this index without defining decade selection in accepted ISA 0.8 (b-isa-spec-f31).'},
+    {'id': 'b-targets-7dv', 'reason': 'Unpublished ref expansion library: all three target-backed normative inc8 runs refuse lift.const.i8 expansion (§8/§11; b-isa-spec-8r4 / bennett-vm-47t); E-ref-09-qxor-witness is not the complete catalog.'},
+    {'id': 'b-targets-38r', 'reason': 'Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements. Circuits also documents no target CLI.'},
+]
+REPORT['acceptance'] = 'BLOCKED: topology semantics, eps_decade, unpublished ref expansion library, reference target CLI surface'
+require(len(REPORT['vm_agreements']) == 31, 'VM agreement baseline changed; deliberate rebaseline required')
+require(REPORT['fixture_bytes'] == REPORT['fixture_hashes'] == 7,
+        'canonical fixture baseline changed; deliberate rebaseline required')
 REPORT['binary_sha256'] = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (VM, REF)}
 (ROOT / 'docs/verification.json').write_text(json.dumps(REPORT, indent=2) + '\n')
 print(json.dumps({k:v for k,v in REPORT.items() if k != 'rejection_diagnostics'}, indent=2))
