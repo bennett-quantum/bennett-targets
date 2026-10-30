@@ -1,5 +1,4 @@
-# Spec versions this repo targets (published contracts only).
-status = "skeleton"
+status = "milestone-1-in-progress"
 
 [specs]
-"bennett-isa-spec" = "0.3"
+"bennett-isa-spec" = "0.8"
