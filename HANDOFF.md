@@ -1,3 +1,9 @@
+State (2026-10-30 ~14:30Z, maintainer pause): main at 7c0465d, on origin/wip/targets-m1 (main not pushed: the gate
+exits 2 by design on the four published acceptance blockers dd3/w8o/7dv/38r; the orchestrator proposed exit 0 with a
+loud report). Today: re-baseline (verify.py, suite_e.rs, canonical.rs, cli.rs classify published-unavailable cases,
+pin seven canonical fixtures incl. the topology target's independently recomputed hash); VM comparisons 31/31 agree
+after the VM's JCS fix; b-targets-4kf closed. Read ../bennett/HANDOFF.md first.
+
 # Handoff: bennett-targets
 
 ISA 0.8 implementation and evidence committed; **milestone 1 remains blocked**.
