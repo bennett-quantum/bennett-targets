@@ -14,6 +14,23 @@ fn suite_e_all_target_bytes_and_hashes() {
         assert_eq!(c, s, "{}", p.display());
         assert_eq!(h, json::hash(s.as_bytes()));
         n += 1;
+        if p.parent().unwrap().ends_with("E-topology-grid-09") {
+            // Canonical bytes/hash only: this does not validate topology semantics.
+            let case: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(p.parent().unwrap().join("case.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(h, case["expected_outcome"]["target_hash"]);
+            assert_eq!(
+                h,
+                "960cee71e88da141cc6c2b13cab3f28fce1d50c006e67446aadb592e2bfd0882"
+            );
+            let error = Target::load(&s).unwrap_err();
+            assert!(
+                error.contains("§8.3") && error.contains("unknown field topology"),
+                "{error}"
+            );
+        }
         if p.parent().unwrap().ends_with("E-jcs-target-hash") {
             assert_eq!(
                 h,
@@ -21,7 +38,7 @@ fn suite_e_all_target_bytes_and_hashes() {
             );
         }
     }
-    assert_eq!(n, 6);
+    assert_eq!(n, 7);
 }
 #[test]
 fn rfc8785_numbers_unicode_and_strings() {
