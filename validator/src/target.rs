@@ -101,7 +101,7 @@ impl Target {
                 "tables",
                 "imports",
             ],
-            &[],
+            &["topology"],
         )?;
         let classes = obj(&d["classes"])?;
         if classes.is_empty() {
@@ -112,6 +112,9 @@ impl Target {
             expr::nonnegative(&c["qubit_second"])?;
             expr::nonnegative(&c["dirty_rate"])?;
             bound(&c["capacity"])?;
+        }
+        if let Some(topology) = d.get("topology") {
+            self.topology_schema(topology)?;
         }
         let widths = arr(&d["ptr_widths_supported"])?;
         if widths.is_empty() {

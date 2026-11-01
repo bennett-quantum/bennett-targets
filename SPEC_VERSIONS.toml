@@ -1,4 +1,4 @@
-status = "milestone-1-blocked"
+status = "target-0.9-validator-verified; acceptance-blocked"
 
 [specs]
-"bennett-isa-spec" = "0.8"
+"bennett-isa-spec" = "0.9"

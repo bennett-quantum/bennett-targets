@@ -76,8 +76,8 @@ pub fn check(v: &Value, vars: &[&str], tables: &Value) -> Result<()> {
         }
         match o["index"].as_str() {
             Some("k") if vars.contains(&"k") => return Ok(()),
-            Some("eps_decade") if vars.contains(&"eps") => return Err("§8.1: eps_decade indexing undefined in ISA 0.8; blocked by b-targets-w8o (ISA b-isa-spec-f31)".into()),
-            _ => return Err("§8.1: table index k or eps_decade must be bound".into())
+            Some("eps_decade") if vars.contains(&"eps") => return Ok(()),
+            _ => return Err("§8.1: table index k or eps_decade must be bound".into()),
         }
     }
     if o.len() != 2 || !o.contains_key("op") || !o.contains_key("args") {
@@ -134,11 +134,23 @@ pub fn eval(v: &Value, env: &Bindings, tables: &Value) -> Result<Rational> {
         };
     }
     if let Some(name) = v.get("table").and_then(Value::as_str) {
-        let k = env.get("k").ok_or("§8.1: unbound k")?;
-        if !k.is_integer() || k.is_negative() {
+        // Grammar and bindings were validated by check() above.
+        let selected = if v["index"] == "eps_decade" {
+            // §8.1 EPS-DECADE: min{ j >= 0 : eps * 10^j >= 1 }, exact rationals only.
+            let mut e = epsilon(env)?;
+            let mut j = BigInt::zero();
+            while e < Rational::one() {
+                e *= Rational::from_integer(10.into());
+                j += 1;
+            }
+            Rational::from_integer(j)
+        } else {
+            env.get("k").ok_or("§8.1: unbound k")?.clone()
+        };
+        if !selected.is_integer() || selected.is_negative() {
             return Err("§8.1: table index outside the array".into());
         }
-        let i = k
+        let i = selected
             .to_integer()
             .to_usize()
             .ok_or("§8.1: table index outside the array")?;

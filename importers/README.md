@@ -32,7 +32,7 @@ ceiling is imposed on counts. No Toffoli-to-T or rotation synthesis factor is as
 fractional counts and negative counts are explicit errors. AlgorithmSummary,
 PhysicalCostModel, factory/QEC objects, protobuf Bloq programs, custom attributes,
 and all other source keys are explicitly unsupported inputs, not silently
-flattened. Complete symbolic/hierarchical models remain in PLAN and b-targets-gyp.
+flattened. Complete symbolic/hierarchical models remain in PLAN, b-targets-gyp and b-isa-spec-fd0.
 The adapter adds accounting dimensions and converts quantities; it does not
 claim a GateCounts report is a native hardware gate table.
 
@@ -50,39 +50,39 @@ large integers when the outer report is serialized as JCS.
 | --- | --- |
 | qubitParams | exactly one nested hardware parameter object |
 | name | source provenance; explicit string required; no implicit preset lookup |
-| instructionSet | assert GateBased; Majorana/other values rejected |
-| oneQubitGateTime | seconds quantity and existing x/h/s/sdg gate-time overlays |
-| twoQubitGateTime | seconds quantity and existing cx/cz/swap gate-time overlays |
-| tGateTime | seconds quantity and existing t/tdg gate-time overlays |
+| instructionSet | GateBased or Majorana; each admits only its own fields; others rejected |
+| oneQubitGateTime | GateBased: seconds quantity and x/h/s/sdg gate-time overlays |
+| twoQubitGateTime | GateBased: seconds quantity and cx/cz/swap overlays; defaults to oneQubitGateTime |
+| tGateTime | seconds quantity and t/tdg overlays; GateBased defaults to oneQubitGateTime, Majorana requires it |
 | oneQubitMeasurementTime | seconds quantity only; no runtime duration inferred |
-| oneQubitMeasurementErrorRate | assert zero; nonzero rejected with field path |
-| oneQubitGateErrorRate | assert zero; nonzero rejected with field path |
-| twoQubitGateErrorRate | assert zero; defaults to oneQubitGateErrorRate |
-| tGateErrorRate | assert zero; defaults to oneQubitGateErrorRate |
-| idleErrorRate | assert zero; defaults to oneQubitMeasurementErrorRate |
+| twoQubitJointMeasurementTime | Majorana: seconds quantity only; defaults to oneQubitMeasurementTime |
+| oneQubitGateErrorRate | GateBased: count resource, charged on x/h/s/sdg |
+| twoQubitGateErrorRate | GateBased: count resource, charged on cx/cz/swap; defaults to oneQubitGateErrorRate |
+| tGateErrorRate | count resource, charged on t/tdg; GateBased defaults to oneQubitGateErrorRate, Majorana requires it |
+| oneQubitMeasurementErrorRate | number or {process, readout}; quantity only, no charged event |
+| twoQubitJointMeasurementErrorRate | Majorana: as above; defaults to oneQubitMeasurementErrorRate |
+| idleErrorRate | as above; defaults to oneQubitMeasurementErrorRate |
 
-The last two gate times default to oneQubitGateTime. All resolved defaults are
-explicit in the mapping report. Durations accept s, ms, us, µs, μs, ns and ps,
-convert exactly to seconds, and map to separate `azure.<field>.seconds` count
-resources in imports, factor 1 (source quantities in the report are already
-normalized to seconds). The source duration and its unit remain in provenance.
-The base must use seconds for its time resource. Missing mandatory inputs and
-unknown units are errors. These overlays do not invent missing native operations.
+All resolved defaults are explicit in the mapping report. Durations accept s, ms,
+us, µs, μs, ns and ps, convert exactly to seconds, and map to separate
+`azure.<field>.seconds` count resources in imports, factor 1. The base must use
+seconds for its time resource. Missing mandatory inputs and unknown units are errors.
 
-Physical failure probability is not ISA §8.1's phase-sensitive operator-norm
-approximation error. Nonzero probabilities and process/readout error objects
-are explicit errors, never set to zero or copied into epsilon. The source's
-measurement duration is retained as hardware data; §8 supplies no distinct
-measurement-operation duration field. Full behavioral measurement import is
-blocked by b-targets-gyp. Base classical step/feedforward times remain explicit.
+**Failure probabilities are named resources, never epsilon.** North Star §7 says
+imported models become "new named resources" where units do not align. Each rate
+is a §8.2 `count` resource with unit `failure_probability` (`azure.<field>`, or
+`azure.<field>.process` / `.readout`), in [0, 1]. On gates it sums per leaf event,
+which is a first-order accounting dimension: neither ISA §8.1's phase-sensitive
+operator-norm approximation error nor a composed failure probability. `epsilon`
+is never changed. Measurement and idle rates are quantities only, because §8 has
+no such charged event. A Majorana import keeps the base's gates; joint measurements
+are not gates and none is invented.
 
 `qecScheme`, `errorBudget`, `constraints`, `distillationUnitSpecifications`,
 `profiling`, `estimateType`, `resumeAfterFailedIteration`, batch/items/result
-objects and every other top-level field are explicit errors. Within qubitParams,
-`twoQubitJointMeasurementTime`, `twoQubitJointMeasurementErrorRate`, custom
-expressions and every other unknown field are explicit errors. QEC/code-distance
-formulae, factory throughput, hierarchy and stochastic channels require published
-bindings/semantics (b-targets-gyp), retained in the full remit rather than dropped.
+objects and every other unknown field are explicit errors, not dropped scope.
+QEC/code-distance formulae, factory throughput and hierarchy need a contract that
+§8 does not have: b-targets-gyp, with exact proposed spec text in b-isa-spec-fd0.
 
 The hand-written fixtures are illustrative, with all fields covered by tests;
-zero-error Azure is an executable translation witness, not physical hardware.
+they are executable translation witnesses, not physical hardware.

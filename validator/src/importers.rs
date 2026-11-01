@@ -20,7 +20,7 @@ fn finish(d: Value, mapping: Value, quantities: Value, source: Value) -> Result<
 fn reject_unknown(input: &Value, allowed: &[&str], prefix: &str) -> Result<()> {
     for key in object(input)?.keys() {
         if !allowed.contains(&key.as_str()) {
-            return Err(format!("import: {prefix}{key}: explicitly unsupported field; no silent dropping (ISA §8.3 imports; gap b-targets-gyp for QEC/error models)"));
+            return Err(format!("import: {prefix}{key}: explicitly unsupported field; no silent dropping (ISA §8.3 imports; QEC, hierarchy and symbolic models: b-targets-gyp, proposed text b-isa-spec-fd0)"));
         }
     }
     Ok(())
@@ -135,8 +135,81 @@ fn seconds(v: &Value, field: &str) -> Result<Value> {
     }
     Ok(v)
 }
+/// One rate: a number, or Azure's {"process","readout"} measurement object.
+fn rate_parts(v: &Value, field: &str, allow_object: bool) -> Result<Vec<(String, Value)>> {
+    let parts = match v.as_object() {
+        Some(o) if allow_object => {
+            if o.len() != 2 || !o.contains_key("process") || !o.contains_key("readout") {
+                return Err(format!(
+                    "import: qubitParams.{field}: object rate has exactly process and readout"
+                ));
+            }
+            vec![
+                (format!("azure.{field}.process"), o["process"].clone()),
+                (format!("azure.{field}.readout"), o["readout"].clone()),
+            ]
+        }
+        _ => vec![(format!("azure.{field}"), v.clone())],
+    };
+    for (_, n) in &parts {
+        let p = expr::nonnegative(n).map_err(|e| format!("import: qubitParams.{field}: {e}"))?;
+        if p > Rational::from_integer(1.into()) {
+            return Err(format!(
+                "import: qubitParams.{field}: failure probability above 1"
+            ));
+        }
+    }
+    Ok(parts)
+}
+type TimeRow = (&'static str, Option<&'static str>, &'static [&'static str]);
+const GATE_TIMES: [TimeRow; 4] = [
+    ("oneQubitMeasurementTime", None, &[]),
+    ("oneQubitGateTime", None, &["x", "h", "s", "sdg"]),
+    (
+        "twoQubitGateTime",
+        Some("oneQubitGateTime"),
+        &["cx", "cz", "swap"],
+    ),
+    ("tGateTime", Some("oneQubitGateTime"), &["t", "tdg"]),
+];
+const MAJORANA_TIMES: [TimeRow; 3] = [
+    ("oneQubitMeasurementTime", None, &[]),
+    (
+        "twoQubitJointMeasurementTime",
+        Some("oneQubitMeasurementTime"),
+        &[],
+    ),
+    ("tGateTime", None, &["t", "tdg"]),
+];
+const GATE_RATES: [TimeRow; 5] = [
+    ("oneQubitMeasurementErrorRate", None, &[]),
+    ("oneQubitGateErrorRate", None, &["x", "h", "s", "sdg"]),
+    (
+        "twoQubitGateErrorRate",
+        Some("oneQubitGateErrorRate"),
+        &["cx", "cz", "swap"],
+    ),
+    (
+        "tGateErrorRate",
+        Some("oneQubitGateErrorRate"),
+        &["t", "tdg"],
+    ),
+    ("idleErrorRate", Some("oneQubitMeasurementErrorRate"), &[]),
+];
+const MAJORANA_RATES: [TimeRow; 4] = [
+    ("oneQubitMeasurementErrorRate", None, &[]),
+    (
+        "twoQubitJointMeasurementErrorRate",
+        Some("oneQubitMeasurementErrorRate"),
+        &[],
+    ),
+    ("tGateErrorRate", None, &["t", "tdg"]),
+    ("idleErrorRate", Some("oneQubitMeasurementErrorRate"), &[]),
+];
 /// Legacy Azure estimator qubitParams JSON. Hardware data overlays an explicit
-/// base target; stochastic probabilities are never treated as operator-norm eps.
+/// base target. North Star §7: quantities that do not align with a declared
+/// resource import as new named resources, so a failure probability is a §8.2
+/// count resource and is never treated as §8.1 operator-norm epsilon.
 pub fn azure(base: &Target, input: &Value) -> Result<Value> {
     if base.document["resources"]["time"]["unit"] != "second"
         && base.document["resources"]["time"]["unit"] != "s"
@@ -147,105 +220,71 @@ pub fn azure(base: &Target, input: &Value) -> Result<Value> {
     let q = input
         .get("qubitParams")
         .ok_or("import: qubitParams is required")?;
-    let fields = [
-        "name",
-        "instructionSet",
-        "oneQubitMeasurementTime",
-        "oneQubitGateTime",
-        "twoQubitGateTime",
-        "tGateTime",
-        "oneQubitMeasurementErrorRate",
-        "oneQubitGateErrorRate",
-        "twoQubitGateErrorRate",
-        "tGateErrorRate",
-        "idleErrorRate",
-    ];
+    let (times, rates): (&[TimeRow], &[TimeRow]) = match q["instructionSet"].as_str() {
+        Some("GateBased") => (&GATE_TIMES, &GATE_RATES),
+        Some("Majorana") => (&MAJORANA_TIMES, &MAJORANA_RATES),
+        _ => {
+            return Err("import: qubitParams.instructionSet: GateBased or Majorana required".into())
+        }
+    };
+    let mut fields = vec!["name", "instructionSet"];
+    fields.extend(times.iter().chain(rates).map(|row| row.0));
     reject_unknown(q, &fields, "qubitParams.")?;
-    if q["instructionSet"] != "GateBased" {
-        return Err("import: qubitParams.instructionSet: only explicit GateBased is representable; Majorana joint measurements require ISA channel model b-targets-gyp".into());
-    }
     let name = q["name"]
         .as_str()
         .ok_or("import: qubitParams.name string required")?;
-    for field in [
-        "oneQubitMeasurementErrorRate",
-        "oneQubitGateErrorRate",
-        "twoQubitGateErrorRate",
-        "tGateErrorRate",
-        "idleErrorRate",
-    ] {
-        let fallback = match field {
-            "twoQubitGateErrorRate" | "tGateErrorRate" => "oneQubitGateErrorRate",
-            "idleErrorRate" => "oneQubitMeasurementErrorRate",
-            _ => field,
-        };
-        let v = q
-            .get(field)
-            .or_else(|| q.get(fallback))
-            .ok_or_else(|| format!("import: qubitParams.{field} required"))?;
-        if !expr::nonnegative(v)?.is_zero() {
-            return Err(format!("import: qubitParams.{field}: stochastic failure probability cannot be equated to §8.1 approximation epsilon; blocked by b-targets-gyp"));
-        }
-    }
     let mut d = base.document.clone();
     let mut mapping =
-        json!({"name":"source.name (provenance)","instructionSet":"assert GateBased"});
+        json!({"name":"source.name (provenance)","instructionSet":q["instructionSet"]});
     let mut map = json!({});
     let mut quantities = json!({});
     if d["imports"].get("azure.qubitParams").is_some() {
         return Err("import: azure.qubitParams already present".into());
     }
-    for field in [
-        "oneQubitMeasurementTime",
-        "oneQubitGateTime",
-        "twoQubitGateTime",
-        "tGateTime",
-    ] {
+    for (field, fallback, ops) in times {
         let source = q
-            .get(field)
-            .or_else(|| {
-                if field == "twoQubitGateTime" || field == "tGateTime" {
-                    q.get("oneQubitGateTime")
-                } else {
-                    None
-                }
-            })
+            .get(*field)
+            .or_else(|| fallback.and_then(|f| q.get(f)))
             .ok_or_else(|| format!("import: qubitParams.{field} required"))?;
         let value = seconds(source, field)?;
         let resource = format!("azure.{field}.seconds");
         insert_resource(&mut d, &resource, "second")?;
-        map[field] = json!([resource, 1]);
+        map[*field] = json!([resource, 1]);
         quantities[&resource] = value.clone();
-        let ops: &[&str] = match field {
-            "oneQubitGateTime" => &["x", "h", "s", "sdg"],
-            "twoQubitGateTime" => &["cx", "cz", "swap"],
-            "tGateTime" => &["t", "tdg"],
-            _ => &[],
-        };
         for g in d["gates"].as_array_mut().unwrap() {
             if ops.contains(&g["op"].as_str().unwrap()) {
                 g["cost"]["time"] = value.clone();
             }
         }
-        mapping[field] = json!({"resource":resource,"unit":"second","gate_time_overlays":ops,"defaulted":q.get(field).is_none()});
+        mapping[*field] = json!({"resource":resource,"unit":"second","gate_time_overlays":ops,"defaulted":q.get(*field).is_none()});
     }
-    for field in [
-        "oneQubitMeasurementErrorRate",
-        "oneQubitGateErrorRate",
-        "twoQubitGateErrorRate",
-        "tGateErrorRate",
-    ] {
-        mapping[field] = json!("assert exact zero; retained in source; nonzero is an error");
+    for (field, fallback, ops) in rates {
+        let source = q
+            .get(*field)
+            .or_else(|| fallback.and_then(|f| q.get(f)))
+            .ok_or_else(|| format!("import: qubitParams.{field} required"))?;
+        // Gate rates charge per gate, so only a measurement or idle rate may split.
+        let parts = rate_parts(source, field, ops.is_empty())?;
+        let mut resources = Vec::new();
+        for (resource, value) in parts {
+            insert_resource(&mut d, &resource, "failure_probability")?;
+            let quantity = resource.strip_prefix("azure.").unwrap();
+            map[quantity] = json!([resource, 1]);
+            quantities[&resource] = value.clone();
+            for g in d["gates"].as_array_mut().unwrap() {
+                if ops.contains(&g["op"].as_str().unwrap()) {
+                    g["cost"][&resource] = value.clone();
+                }
+            }
+            resources.push(resource);
+        }
+        mapping[*field] = json!({"resources":resources,"unit":"failure_probability","gate_cost_overlays":ops,"defaulted":q.get(*field).is_none()});
     }
-    if q.get("idleErrorRate").is_some() {
-        mapping["idleErrorRate"] =
-            json!("assert exact zero; retained in source; nonzero is an error");
-    }
-    d["imports"]["azure.qubitParams"] = json!({"version":"legacy-GateBased-qubitParams","map":map});
+    d["imports"]["azure.qubitParams"] = json!({"version":"legacy-qubitParams","map":map});
     finish(
         d,
         mapping,
         quantities,
-        json!({"format":"Azure legacy estimator qubitParams","name":name,"input_json":input.to_string(),"base_target_hash":base.hash,"measurement_time_semantics":"imported hardware quantity; ISA 0.8 has no separate measurement duration field; no operational latency is inferred"}),
+        json!({"format":"Azure legacy estimator qubitParams","name":name,"input_json":input.to_string(),"base_target_hash":base.hash,"measurement_time_semantics":"imported hardware quantity; ISA §8 has no separate measurement duration field; no operational latency is inferred","failure_probability_semantics":"§8.2 count: the sum of per-gate probabilities over leaf events, a first-order accounting dimension. Not §8.1 epsilon and not a composed failure probability. Measurement and idle rates are quantities only: §8 has no such charged event.","gate_set_semantics":"the base target's gates are retained; Majorana joint measurements are not gates and none is invented"}),
     )
 }

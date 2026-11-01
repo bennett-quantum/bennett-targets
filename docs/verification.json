@@ -1,4 +1,19 @@
 {
+  "spec": "ISA 0.9 \u00a78 (target 0.9)",
+  "consumer_gaps": [
+    {
+      "consumer": "bennett-vm",
+      "target": "target.json",
+      "bead": "b-targets-dt2",
+      "error": "\u00a78: unknown field topology"
+    },
+    {
+      "consumer": "bennett-vm",
+      "target": "superconducting-grid-2d-illustrative.json",
+      "bead": "b-targets-dt2",
+      "error": "\u00a78: unknown field topology"
+    }
+  ],
   "fixture_bytes": 7,
   "fixture_hashes": 7,
   "vm_agreements": [
@@ -32,7 +47,9 @@
     "objective-unknown-resource",
     "import-unknown-resource",
     "qram-unbound",
-    "canonical-small-exponent"
+    "canonical-small-exponent",
+    "eps-decade-exact-entry",
+    "eps-decade-valid"
   ],
   "vm_divergences": [],
   "rejection_diagnostics": [
@@ -160,6 +177,11 @@
       "name": "qram-unbound",
       "validator": "{\"error\":\"\u00a78.1: referencing a variable that the context does not bind is a load-time error: unbound k\"}",
       "vm": "\u00a78.1: unbound k"
+    },
+    {
+      "name": "eps-decade-exact-entry",
+      "validator": "{\"error\":\"\u00a78.1: an entry with epsilon 0 MUST NOT reference eps or log2inv_eps\"}",
+      "vm": "\u00a78.1: epsilon zero entry references eps"
     }
   ],
   "reference_unavailable": [
@@ -188,7 +210,7 @@
     },
     {
       "name": "superconducting-grid-illustrative.json",
-      "hash": "c4325a53d82a33437f462a81677381f6222d267655cd4b1fc7de2c0155f3f7a9",
+      "hash": "0515590129427b3b3dc8bcabc04c1eef60da7d38e7fb8c80ae0eb9618b0a1bdf",
       "resources": {
         "gate_count": "2",
         "peak_qubits": {
@@ -219,46 +241,149 @@
   ],
   "importer_runs": [
     "qualtran-gate-counts.json",
-    "azure-qubit-params.json"
+    "azure-qubit-params.json",
+    "azure-nonzero-error.json",
+    "azure-majorana.json"
   ],
   "published_unavailable": [
     {
+      "id": "E-ref-09-activation",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; accepted K24-K27 and complete ref required"
+    },
+    {
+      "id": "E-ref-09-address-dispatch",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and binding repair b-isa-spec-cbk required"
+    },
+    {
+      "id": "E-ref-09-allocation-results",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; accepted K27 and complete catalog required"
+    },
+    {
+      "id": "E-ref-09-allocator-control",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted binding language required"
+    },
+    {
+      "id": "E-ref-09-assignment-rows",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted K19 required"
+    },
+    {
+      "id": "E-ref-09-call-interfaces",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; accepted K24-K27 and complete ref required"
+    },
+    {
+      "id": "E-ref-09-classical-bound",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; bound event serialization requires accepted K19 and complete catalog"
+    },
+    {
       "id": "E-ref-09-copy-native",
       "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete library contract gaps b-isa-spec-cbk / b-isa-spec-8sc; draft checkpoint only"
+    },
+    {
+      "id": "E-ref-09-generic-memory",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; generic typed catalog pending complete binding library"
+    },
+    {
+      "id": "E-ref-09-layout-memory",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted K25 required"
+    },
+    {
+      "id": "E-ref-09-linear-flags",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and binding repair b-isa-spec-cbk required"
+    },
+    {
+      "id": "E-ref-09-native-parametric",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted constructor language required; independent Rust witnesses run separately"
+    },
+    {
+      "id": "E-ref-09-oracle-construction",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; accepted K25/K27 and complete library required"
+    },
+    {
+      "id": "E-ref-09-other-arithmetic",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog, general shifts and binding repair b-isa-spec-cbk required"
+    },
+    {
+      "id": "E-ref-09-qinplace",
+      "reason": "unavailable pending accepted 0.9 and ref publication: b-isa-spec-8r4; the complete draft catalog and K28 witnesses do not promote a 0.8 schedule executor"
     },
     {
       "id": "E-ref-09-qxor-witness",
       "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog is a separate job and ref publication follows acceptance"
     },
     {
+      "id": "E-ref-09-region-images",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted constructor language required; independent Rust witnesses run separately"
+    },
+    {
       "id": "E-ref-09-ripple",
       "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and b-isa-spec-cbk binding repair required"
     },
     {
-      "id": "E-topology-grid-09",
-      "reason": "unavailable pending 0.9: b-isa-spec-wr7; optional topology and physical placements require accepted 0.9"
-    }
-  ],
-  "partial_checks": [
+      "id": "E-ref-09-step-templates",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted constructor language required; independent Rust witnesses run separately"
+    },
     {
-      "id": "E-topology-grid-09",
-      "canonical_hash": "960cee71e88da141cc6c2b13cab3f28fce1d50c006e67446aadb592e2bfd0882",
-      "validator_error": "{\"error\":\"\u00a78.3 schema: unknown field topology\"}",
-      "vm_error": "\u00a78: unknown field topology",
-      "scope": "bytes/hash and 0.8 schema rejection only; topology semantics unavailable",
-      "spec": "\u00a78.3 lists the target fields without topology; \u00a78.2: gates on disjoint wires MAY overlap unless max_parallel or a topology is declared; all-to-all over logical wires."
+      "id": "E-ref-09-structure-blocked",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; contract repairs b-isa-spec-cbk / b-isa-spec-8sc required before complete row/oracle/structure serialization"
+    },
+    {
+      "id": "E-ref-09-structured-bodies",
+      "reason": "unavailable pending 0.9: b-isa-spec-8r4; complete catalog and accepted K19/K20 required"
     }
   ],
+  "partial_checks": [],
   "suite_e_cases": {
-    "executable": 16,
-    "unavailable": 4,
-    "total": 20
+    "executable": 17,
+    "unavailable": 21,
+    "total": 38
+  },
+  "validator_topology": {
+    "adjacent": "realisable",
+    "non_adjacent": "{\"error\":\"E_SCHEDULE_INFEASIBLE: \u00a717 item 15: operand vertices 0 and 3 are not adjacent; no routing is inserted (\u00a711)\"}",
+    "absent": "all-to-all"
+  },
+  "eps_decade_witness": 6,
+  "spec_example_untargeted": [
+    {
+      "consumer": "vm",
+      "check": 0,
+      "run": 0,
+      "error": ""
+    },
+    {
+      "consumer": "reference",
+      "check": 0,
+      "run": 0,
+      "error": ""
+    }
+  ],
+  "ref_library_hash": "5de4e4995350313e50217880ba1b95de39cd043283b726337d4894efb005d197",
+  "ref_inc8_rows": {
+    "recipes": [
+      "bind.value.add",
+      "lift.add",
+      "lift.const",
+      "lift.retval",
+      "value.add",
+      "value.literal"
+    ],
+    "gates": [
+      "ccx",
+      "cx",
+      "swap",
+      "x"
+    ]
   },
   "spec_example_target_runs": [
     {
       "target": "ideal-all-to-all.json",
       "state": "BLOCKED",
       "reason": "\u00a78/\u00a711: unimplemented: gate-level expansion for lift.const.i8 (milestone 4); required ref library is unpublished (bennett-vm-47t)"
+    },
+    {
+      "target": "superconducting-grid-2d-illustrative.json",
+      "state": "BLOCKED",
+      "reason": "\u00a78: unknown field topology"
     },
     {
       "target": "superconducting-grid-illustrative.json",
@@ -275,25 +400,21 @@
   "circuits_target_cli": "unavailable: documented CLI exposes no target input",
   "acceptance_blockers": [
     {
-      "id": "b-targets-dd3",
-      "reason": "Topology semantics: \u00a78.2 mentions topology but \u00a78.3 publishes no topology/placement schema; E-topology-grid-09 requires accepted 0.9 (b-isa-spec-wr7)."
-    },
-    {
-      "id": "b-targets-w8o",
-      "reason": "eps_decade: \u00a78.1 names this index without defining decade selection in accepted ISA 0.8 (b-isa-spec-f31)."
+      "id": "b-targets-38r",
+      "reason": "Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements (b-isa-spec-xg3). Circuits also documents no target CLI."
     },
     {
       "id": "b-targets-7dv",
-      "reason": "Unpublished ref expansion library: all three target-backed normative inc8 runs refuse lift.const.i8 expansion (\u00a78/\u00a711; b-isa-spec-8r4 / bennett-vm-47t); E-ref-09-qxor-witness is not the complete catalog."
+      "reason": "Target-backed normative inc8 does not complete: \u00a78/\u00a711: unimplemented: gate-level expansion for lift.const.i8 (milestone 4); required ref library is unpublished (bennett-vm-47t)"
     },
     {
-      "id": "b-targets-38r",
-      "reason": "Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements. Circuits also documents no target CLI."
+      "id": "b-targets-dt2",
+      "reason": "Validator implements \u00a78.3 topology; the VM refuses it, so no consumer agrees yet: \u00a78: unknown field topology"
     }
   ],
-  "acceptance": "BLOCKED: topology semantics, eps_decade, unpublished ref expansion library, reference target CLI surface",
+  "acceptance": "BLOCKED: b-targets-38r, b-targets-7dv, b-targets-dt2",
   "binary_sha256": {
-    "/home/tobias/Projects/bennett-workspace/bennett-vm/target/debug/bennett-vm": "10229209577ee1d0da74daea89c3fa922f27f636736b8d06a61e4f5c7ce570a3",
-    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "c2f3f9a10a4d4c141244f408d2a2a3fa21ffaaa9b0506f28898660b37a3367b0"
+    "/home/tobias/Projects/bennett-workspace/bennett-vm/target/debug/bennett-vm": "572d3188ea8b2a38e6c3e8cdc9f685643e631d7527f2271e95c6aeeb8bea485b",
+    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "5fe5a95c87440a7cc5e3b0095adf8704424391d30e3e911a80be7bf6c7b61a24"
   }
 }

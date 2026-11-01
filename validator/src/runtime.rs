@@ -349,6 +349,16 @@ impl Target {
                     ));
                 }
             }
+            if let Some(limits) = self.vertex_limits()? {
+                for (cls, n) in &counts {
+                    let limit = limits.get(*cls).copied().unwrap_or(0);
+                    if *n > limit {
+                        return Err(format!(
+                            "§8.3: {n} live wires of class {cls} exceed its {limit} vertices"
+                        ));
+                    }
+                }
+            }
             for (r, def) in object(&self.document["resources"])? {
                 for (cls, n) in &counts {
                     if def["kind"] == "peak" {

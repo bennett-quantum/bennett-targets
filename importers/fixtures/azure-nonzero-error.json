@@ -1,0 +1,1 @@
+{"qubitParams":{"name":"illustrative-nonzero-error","instructionSet":"GateBased","oneQubitMeasurementTime":"1 us","oneQubitGateTime":"20 us","twoQubitGateTime":"200 us","tGateTime":"30 us","oneQubitMeasurementErrorRate":{"process":0.002,"readout":0.003},"oneQubitGateErrorRate":0.001,"twoQubitGateErrorRate":0.01,"tGateErrorRate":0.001,"idleErrorRate":0.0001}}

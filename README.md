@@ -1,6 +1,6 @@
 # bennett-targets
 
-Independent Bennett ISA 0.8 target validator, canonical descriptions and first
+Independent Bennett ISA 0.9 §8 (target 0.9) target validator, canonical descriptions and first
 Qualtran/Azure adapters. See [PLAN](docs/PLAN.md), [progress](docs/PROGRESS.md),
 [models](targets/README.md), and [field mappings](importers/README.md).
 
@@ -15,6 +15,9 @@ Build via Cargo with the absolute `validator/Cargo.toml` manifest. The binary is
 - `validate <file>`: canonical input and schema/context checks, JSON valid/hash.
 - `canon <file>`: strict JSON to canonical bytes/hash encoded in a JSON result;
   canonicalization does not assert semantic validity (negative fixtures work).
+- `eval <target> <query>`: `{"expr":..,"bindings":{"eps":"0.1"}}` to an exact rational.
+- `adjacency <target> <query>`: `{"vertices":[u,v]}` to realisable, or
+  `E_SCHEDULE_INFEASIBLE` naming §17 item 15 (§8.3 topology).
 - `import-qualtran <base-target> <input-json>` / `import-azure ...`: canonical
   target plus loss-explicit field mapping and converted quantities.
 
@@ -28,12 +31,16 @@ aggregation. Context-dependent errors are checked with actual request bindings;
 schema validation does not prove all possible requests valid or prove a scheme's
 unitary correct. Field/context diagnostics cite the relevant ISA sentence.
 
-Acceptance is **blocked**, not complete: ISA 0.8 has no topology schema and
-undefined eps_decade indexing; the reference CLI refuses all targets; consumer
-schema/JCS differences are retained in [verification](docs/verification.json).
-The consumer harness returns exit 2 for those known acceptance blockers and
-fails immediately on missing binaries, broken witnesses or unexpected run results.
-Circuits' documented CLI does not yet accept targets. No other repo is modified.
+Acceptance is **blocked**, not complete: the validator implements K9 eps_decade
+and K14 topology, but the VM refuses topology targets (b-targets-dt2), the VM
+does not yet execute the normative inc8 example under a target (b-targets-7dv) and
+the reference CLI refuses all targets (b-targets-38r); evidence is in
+[verification](docs/verification.json). The consumer harness returns exit 2 for
+those known acceptance blockers and fails immediately on missing binaries, broken
+witnesses or unexpected run results. Circuits' documented CLI does not yet accept
+targets. `SPEC_VERSIONS.toml` claims 0.9 for §8 only: the objects the harness runs
+under a target are the 0.8 registers fixture, and the 0.9 inc8 runs untargeted.
+QEC and hierarchy import await b-targets-gyp / b-isa-spec-fd0.
 
 Small dependencies are justified in PLAN: unrestricted exact rational arithmetic,
 RFC 8785 numeric formatting and SHA-256. All target and importer code is independent.

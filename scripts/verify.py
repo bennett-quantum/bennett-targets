@@ -10,19 +10,20 @@ import sys
 from fractions import Fraction
 
 ROOT = Path(__file__).resolve().parents[1]
+VM_TOPOLOGY_BEAD = 'b-targets-dt2'
 WORK = ROOT / '.tmp' / 'verify'
 WORK.mkdir(parents=True, exist_ok=True)
 for key in ('DISPLAY', 'WAYLAND_DISPLAY', 'DBUS_SESSION_BUS_ADDRESS', 'BROWSER'):
     os.environ.pop(key, None)
 os.environ['TMPDIR'] = str(ROOT / '.tmp')
-VALIDATOR = ROOT / 'validator/target/debug/bennett-targets-validator'
+VALIDATOR = Path(os.environ.get('CARGO_TARGET_DIR', ROOT / 'validator/target')) / 'debug/bennett-targets-validator'
 VM = ROOT.parent / 'bennett-vm/target/debug/bennett-vm'
 REF = ROOT.parent / 'bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref'
 FIXTURES = Path(os.environ.get('BENNETT_TARGETS_E_CASES', ROOT.parent / 'bennett-isa-spec/conformance/cases/E'))
 OBJECT = ROOT.parent / 'bennett-isa-spec/conformance/cases/objects/registers.bisa'
-REPORT = {'fixture_bytes': 0, 'fixture_hashes': 0, 'vm_agreements': [], 'vm_divergences': [], 'rejection_diagnostics': [], 'reference_unavailable': [], 'model_runs': [], 'importer_runs': [], 'published_unavailable': [], 'partial_checks': []}
+REPORT = {'spec': 'ISA 0.9 §8 (target 0.9)', 'consumer_gaps': [], 'fixture_bytes': 0, 'fixture_hashes': 0, 'vm_agreements': [], 'vm_divergences': [], 'rejection_diagnostics': [], 'reference_unavailable': [], 'model_runs': [], 'importer_runs': [], 'published_unavailable': [], 'partial_checks': []}
 
-# These sixteen scenarios remain executable in the validator's Rust suite-E test.
+# These seventeen scenarios remain executable in the validator's Rust suite-E test.
 # An upstream unavailable marker never removes one of these obligations.
 PUBLISHED_CASES = {
     'E-aggregation', 'E-ast-division-by-zero', 'E-ast-eps-out-of-range',
@@ -30,7 +31,7 @@ PUBLISHED_CASES = {
     'E-epsilon-zero-exact', 'E-imports', 'E-jcs-target-hash',
     'E-matching-first-entry', 'E-mbu-must-be-false',
     'E-scheme-correctness-negative', 'E-scheme-expansion', 'E-table-index',
-    'E-target-staged-probe', 'E-timing-overlap',
+    'E-target-staged-probe', 'E-timing-overlap', 'E-topology-grid-09',
 }
 
 def classify_published(case):
@@ -86,7 +87,7 @@ def comparison(name, path):
                 'cost-unknown-operator':'operator', 'cost-divide-zero':'division by zero',
                 'epsilon-exact-reference':'eps', 'gate-unknown-class':'class', 'controls-reversed':'range',
                 'capability-negative':'nonnegative', 'measurement-not-bool':'bool',
-                'objective-unknown-resource':'resource', 'import-unknown-resource':'resource', 'qram-unbound':'unbound k',
+                'eps-decade-exact-entry':'eps', 'objective-unknown-resource':'resource', 'import-unknown-resource':'resource', 'qram-unbound':'unbound k',
             }
             rule = rules.get(name)
             require(rule is not None, 'unknown published case: ' + name)
@@ -95,6 +96,34 @@ def comparison(name, path):
         REPORT['vm_agreements'].append(name)
     else:
         raise AssertionError(name + ': consumer divergence: ' + repr((ours.returncode, ours.stderr, other.returncode, other.stderr)))
+
+def query(command, target, body, name):
+    source = WORK / (name + '.query.json')
+    source.write_text(json.dumps(body))
+    return run(VALIDATOR, command, target, source)
+
+def vm_topology_gap(path, entry='allocation'):
+    """The VM's refusal of a valid 0.9 target is a recorded consumer gap, not agreement."""
+    other = vm(path, entry)
+    if other.returncode == 0:
+        return other
+    require('unknown field topology' in other.stderr, path.name + ': unexpected VM error: ' + other.stderr)
+    REPORT['consumer_gaps'].append({'consumer': 'bennett-vm', 'target': path.name, 'bead': VM_TOPOLOGY_BEAD, 'error': other.stderr.strip()})
+    return None
+
+def check_topology(path, case):
+    scenario, expected = case['scenario'], case['expected_outcome']
+    require(validate(path).returncode == 0, 'topology witness must load under §8.3')
+    yes = query('adjacency', path, {'vertices': scenario['adjacent']}, 'topology-adjacent')
+    require(yes.returncode == 0 and json.loads(yes.stdout)['realisable'] is True, yes.stderr)
+    no = query('adjacency', path, {'vertices': scenario['non_adjacent']}, 'topology-non-adjacent')
+    require(no.returncode == 1 and not no.stdout and expected['native_cx_non_adjacent'] in no.stderr, no.stderr)
+    document = json.loads(path.read_text())
+    del document['topology']
+    absent = query('adjacency', canonical(document, 'topology-absent'), {'vertices': scenario['non_adjacent']}, 'topology-absent')
+    require(absent.returncode == 0, 'absent topology must be all-to-all: ' + absent.stderr)
+    REPORT['validator_topology'] = {'adjacent': 'realisable', 'non_adjacent': no.stderr.strip(), 'absent': 'all-to-all'}
+    vm_topology_gap(path)
 
 cases = {}
 for path in sorted(FIXTURES.glob('*/case.json')):
@@ -119,20 +148,10 @@ for path in sorted(FIXTURES.glob('*/target.json')):
     stated_hash = case.get('expected_outcome', {}).get('target_hash')
     if stated_hash is not None:
         require(result['target_hash'] == stated_hash, str(path) + ': published target_hash mismatch')
-    if executable:
+    if path.parent.name == 'E-topology-grid-09':
+        check_topology(path, case)
+    elif executable:
         comparison(path.parent.name, path)
-    elif path.parent.name == 'E-topology-grid-09':
-        ours, other = validate(path), vm(path)
-        require(ours.returncode == other.returncode == 1 and not ours.stdout and not other.stdout,
-                'topology: changed ISA 0.8 schema behavior; re-evaluate runnable obligations')
-        require('§8.3' in ours.stderr and 'unknown field topology' in ours.stderr, ours.stderr)
-        require('§8' in other.stderr and 'unknown field topology' in other.stderr, other.stderr)
-        REPORT['partial_checks'].append({
-            'id': path.parent.name, 'canonical_hash': result['target_hash'],
-            'validator_error': ours.stderr.strip(), 'vm_error': other.stderr.strip(),
-            'scope': 'bytes/hash and 0.8 schema rejection only; topology semantics unavailable',
-            'spec': '§8.3 lists the target fields without topology; §8.2: gates on disjoint wires MAY overlap unless max_parallel or a topology is declared; all-to-all over logical wires.',
-        })
     else:
         # Do not silently hide a target that the validator can evaluate.
         ours = validate(path)
@@ -142,6 +161,23 @@ for path in sorted(FIXTURES.glob('*/target.json')):
     other = run(REF, 'run-program', OBJECT, 'allocation', '--args', '', '--target', path)
     require(other.returncode == 1 and not other.stdout and 'staged deliverable 9' in other.stderr and ('§8' in other.stderr or '§6.4' in other.stderr), other.stderr)
     REPORT['reference_unavailable'].append(path.parent.name)
+# §8.1 EPS-DECADE witness, parsed from the published text rather than copied.
+spec09 = (ROOT.parent / 'bennett-isa-spec/spec/Bennett-ISA-Spec-0.9.md').read_text()
+fence = spec09.index('```json', spec09.index('**EPS-DECADE witness**')) + len('```json')
+witness = json.loads(spec09[fence:spec09.index('```', fence)])
+require(len(witness) == 6, 'EPS-DECADE witness changed')
+decade = json.loads((FIXTURES / 'E-jcs-target-hash/target.json').read_text())
+decade['tables'] = {'decade': list(range(5))}
+decade_target = canonical(decade, 'eps-decade')
+lookup = {'table': 'decade', 'index': 'eps_decade'}
+for row in witness:
+    out = query('eval', decade_target, {'expr': lookup, 'bindings': {'eps': row['eps']}}, 'eps-decade')
+    require(out.returncode == 0 and json.loads(out.stdout)['value'] == str(row['index']), row['eps'] + out.stderr)
+for bad in ('0', '1.5', None):
+    out = query('eval', decade_target, {'expr': lookup, 'bindings': {} if bad is None else {'eps': bad}}, 'eps-decade')
+    require(out.returncode == 1 and '§8.1' in out.stderr, repr(bad) + out.stderr)
+REPORT['eps_decade_witness'] = len(witness)
+
 comparison('E-noncanonical', FIXTURES / 'E-target-staged-probe/noncanonical.json')
 
 base = json.loads((FIXTURES / 'E-jcs-target-hash/target.json').read_text())
@@ -170,6 +206,7 @@ mutations = {
  'import-unknown-resource': ('imports', {'m':{'version':'v','map':{'q':['missing',1]}}}),
  'qram-unbound': ('qram', {'load':{'cost':{'time':{'var':'k'}}},'store':{'cost':{'time':1}},'exch':{'cost':{'time':1}}}),
  'canonical-small-exponent': ('capabilities.classical_step_time', 1e-8),
+ 'eps-decade-exact-entry': ('gates.0.cost.time', {'table':'t','index':'eps_decade'}),
 }
 for name, (path, value) in mutations.items():
     document = copy.deepcopy(base)
@@ -179,19 +216,27 @@ for name, (path, value) in mutations.items():
         node = node[int(key)] if isinstance(node,list) else node[key]
     key = keys[-1]
     node[int(key) if isinstance(node,list) else key] = value
+    if name.startswith('eps-decade'):
+        document['tables'] = {'t': [1, 2, 3, 4, 5]}
     comparison(name, canonical(document, name))
+valid_decade = copy.deepcopy(base)
+valid_decade['tables'] = {'t': [1, 2, 3, 4, 5]}
+valid_decade['gates'][0]['epsilon'] = 0.001
+valid_decade['gates'][0]['cost']['time'] = {'table':'t','index':'eps_decade'}
+comparison('eps-decade-valid', canonical(valid_decade, 'eps-decade-valid'))
 
 for path in sorted((ROOT / 'targets').glob('*.json')):
     require(validate(path).returncode == 0, str(path))
-    result = vm(path, 'views')
-    require(result.returncode == 0, result.stderr)
+    result = vm_topology_gap(path, 'views')
+    if result is None:
+        continue
     data = json.loads(result.stdout)
     require(data['status'] == 'COMPLETED' and data['target_error'] == '0', str(path))
     require(data['target_resources']['gate_count'] == '2', str(path))
     require(sum(int(v) for v in data['target_resources']['peak_qubits'].values()) == 2, str(path))
     REPORT['model_runs'].append({'name':path.name,'hash':hashlib.sha256(path.read_bytes()).hexdigest(),'resources':data['target_resources']})
 
-for command, filename in [('import-qualtran','qualtran-gate-counts.json'),('import-azure','azure-qubit-params.json')]:
+for command, filename in [('import-qualtran','qualtran-gate-counts.json'),('import-azure','azure-qubit-params.json'),('import-azure','azure-nonzero-error.json'),('import-azure','azure-majorana.json')]:
     result = run(VALIDATOR, command, ROOT / 'targets/ideal-all-to-all.json', ROOT / 'importers/fixtures' / filename)
     require(result.returncode == 0, result.stderr)
     imported = json.loads(result.stdout)
@@ -203,10 +248,10 @@ for command, filename in [('import-qualtran','qualtran-gate-counts.json'),('impo
     require(json.loads(result.stdout)['status'] == 'COMPLETED', filename)
     REPORT['importer_runs'].append(filename)
 
-# Reproduce the normative inc8 object directly from published §16.3, adding a
+# Reproduce the normative inc8 object directly from published 0.9 §16.3, adding a
 # CC wrapper whose interface hash is independently derived from §9.2.
-spec = (ROOT.parent / 'bennett-isa-spec/spec/Bennett-ISA-Spec.md').read_text()
-start = spec.index('bennett-object isa=0.8', spec.index('### 16.3'))
+spec = spec09
+start = spec.index('bennett-object isa=0.9', spec.index('### 16.3'))
 text = spec[start:spec.index('```', start)]
 lines = text.splitlines()
 position = lines.index('section symbols') + 1
@@ -217,23 +262,66 @@ body = ('fn cc @launch (tk:token) () () () ()\n^entry():\n'
         'oracle_call @inc8 tk (x) t f () ()\n'
         'oracle_call @inc8 tk (x) t f () ()\n'
         'qreg.free f\nqreg.free t\nqreg.free x\nret')
-signature = {'abi':'0.8','kind':'cc','params':['token'],'results':[],'tier':'cc'}
-envelope = ('isa=0.8\nptr_width=32\n' + json.dumps(signature, sort_keys=True, separators=(',',':'))
+signature = {'abi':'0.9','kind':'cc','params':['token'],'results':[],'tier':'cc'}
+envelope = ('isa=0.9\nptr_width=32\n' + json.dumps(signature, sort_keys=True, separators=(',',':'))
             + '\n' + body.replace('@inc8', '@' + inc_hash) + '\n' + inc_hash + '\n')
 symbols['1'] = {'interface_hash':hashlib.sha256(envelope.encode()).hexdigest(), 'kind':'cc', 'name':'launch', 'signature':signature}
 lines[position] = json.dumps(symbols, sort_keys=True, separators=(',',':'))
-launch = WORK / 'spec-inc8-launch.bisa'
+launch = WORK / 'spec-inc8-launch-09.bisa'
 launch.write_text('\n'.join(lines) + '\n' + body + '\n')
-for binary in (VM, REF):
-    result = run(binary, 'check', launch)
-    require(result.returncode == 0, result.stderr)
-    result = run(binary, 'run-program', launch, 'launch', '--arg', 'token:3,0,0,0')
-    require(result.returncode == 0 and json.loads(result.stdout)['status'] == 'COMPLETED', result.stderr)
+REPORT['spec_example_untargeted'] = []
+for label, binary in (('vm', VM), ('reference', REF)):
+    checked = run(binary, 'check', launch)
+    ran = run(binary, 'run-program', launch, 'launch', '--arg', 'token:3,0,0,0') if checked.returncode == 0 else None
+    REPORT['spec_example_untargeted'].append({'consumer': label, 'check': checked.returncode,
+        'run': None if ran is None else ran.returncode,
+        'error': (checked.stderr if ran is None else ran.stderr).strip()[:400]})
+
+# §11.1: recompute the published library hash, then the gates the inc8 rows need.
+library_bytes = (ROOT.parent / 'bennett-isa-spec/spec/ref-0.9.json').read_bytes()
+library_hash = hashlib.sha256(b'isa=0.9\nexpansion=ref\nversion=0.9\n' + library_bytes + b'\n').hexdigest()
+require(library_hash in spec09, 'ref-0.9.json envelope hash is not the one bound in §11.1: ' + library_hash)
+REPORT['ref_library_hash'] = library_hash
+library = json.loads(library_bytes)
+recipes = {}
+for recipe in library['recipes']:
+    recipes.setdefault(recipe['kind'], []).append(recipe)
+def walk(node, gates, invoked):
+    if isinstance(node, dict):
+        if 'gate' in node:
+            gates.add(node['gate'])
+        if 'invoke' in node:
+            invoked.add(node['invoke'])
+        for value in node.values():
+            walk(value, gates, invoked)
+    elif isinstance(node, list):
+        for value in node:
+            walk(value, gates, invoked)
+inc8_gates, todo, seen = set(), ['lift.const', 'lift.add', 'lift.retval'], set()
+while todo:
+    kind = todo.pop()
+    if kind not in seen:
+        seen.add(kind)
+        require(kind in recipes, '§11.1 catalog has no recipe ' + kind)
+        for recipe in recipes[kind]:
+            invoked = set()
+            walk(recipe.get('body', recipe.get('operations')), inc8_gates, invoked)
+            todo.extend(invoked)
+require(inc8_gates, 'inc8 recipe closure emitted no gates')
+REPORT['ref_inc8_rows'] = {'recipes': sorted(seen), 'gates': sorted(inc8_gates)}
+for path in sorted((ROOT / 'targets').glob('*.json')):
+    model = json.loads(path.read_text())
+    available = {g['op'] for g in model['gates']} | {s['realises']['op'] for s in model['schemes']}
+    require(inc8_gates <= available, path.name + ': no entry for inc8 row gates ' + repr(inc8_gates - available))
 REPORT['spec_example_target_runs'] = []
 for path in sorted((ROOT / 'targets').glob('*.json')):
     result = run(VM, 'run-program', launch, 'launch', '--arg', 'token:3,0,0,0', '--target', path)
-    require(result.returncode == 1 and not result.stdout and 'required ref library is unpublished' in result.stderr and '§8/§11' in result.stderr, result.stderr)
-    REPORT['spec_example_target_runs'].append({'target':path.name, 'state':'BLOCKED', 'reason':result.stderr.strip()})
+    # Refusal is recorded, never a pass; only a COMPLETED run could close b-targets-7dv.
+    completed = result.returncode == 0 and json.loads(result.stdout).get('status') == 'COMPLETED'
+    REPORT['spec_example_target_runs'].append({'target': path.name,
+        'state': 'COMPLETED' if completed else 'BLOCKED',
+        'reason': '' if completed else (result.stderr or result.stdout).strip()[:400]})
+inc8_blocked = [r for r in REPORT['spec_example_target_runs'] if r['state'] != 'COMPLETED']
 
 # Exact timing/occupancy expectations derived from seven controller instructions,
 # two X leaves and two live wires over five controller steps plus both leaves.
@@ -246,13 +334,14 @@ for model in REPORT['model_runs']:
 REPORT['reference_semantic_agreements'] = 0
 REPORT['circuits_target_cli'] = 'unavailable: documented CLI exposes no target input'
 REPORT['acceptance_blockers'] = [
-    {'id': 'b-targets-dd3', 'reason': 'Topology semantics: §8.2 mentions topology but §8.3 publishes no topology/placement schema; E-topology-grid-09 requires accepted 0.9 (b-isa-spec-wr7).'},
-    {'id': 'b-targets-w8o', 'reason': 'eps_decade: §8.1 names this index without defining decade selection in accepted ISA 0.8 (b-isa-spec-f31).'},
-    {'id': 'b-targets-7dv', 'reason': 'Unpublished ref expansion library: all three target-backed normative inc8 runs refuse lift.const.i8 expansion (§8/§11; b-isa-spec-8r4 / bennett-vm-47t); E-ref-09-qxor-witness is not the complete catalog.'},
-    {'id': 'b-targets-38r', 'reason': 'Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements. Circuits also documents no target CLI.'},
+    {'id': 'b-targets-38r', 'reason': 'Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements (b-isa-spec-xg3). Circuits also documents no target CLI.'},
 ]
-REPORT['acceptance'] = 'BLOCKED: topology semantics, eps_decade, unpublished ref expansion library, reference target CLI surface'
-require(len(REPORT['vm_agreements']) == 31, 'VM agreement baseline changed; deliberate rebaseline required')
+if inc8_blocked:
+    REPORT['acceptance_blockers'].append({'id': 'b-targets-7dv', 'reason': 'Target-backed normative inc8 does not complete: ' + inc8_blocked[0]['reason']})
+if REPORT['consumer_gaps']:
+    REPORT['acceptance_blockers'].append({'id': VM_TOPOLOGY_BEAD, 'reason': 'Validator implements §8.3 topology; the VM refuses it, so no consumer agrees yet: ' + REPORT['consumer_gaps'][0]['error']})
+REPORT['acceptance'] = 'BLOCKED: ' + ', '.join(b['id'] for b in REPORT['acceptance_blockers'])
+require(len(REPORT['vm_agreements']) == 33, 'VM agreement baseline changed; deliberate rebaseline required')
 require(REPORT['fixture_bytes'] == REPORT['fixture_hashes'] == 7,
         'canonical fixture baseline changed; deliberate rebaseline required')
 REPORT['binary_sha256'] = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (VM, REF)}

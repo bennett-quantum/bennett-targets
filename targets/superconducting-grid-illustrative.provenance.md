@@ -28,15 +28,18 @@ inferred stochastic-error or code-distance model. No cost belongs to a scheme.
 
 Physical intent: a 4 × 4 nearest-neighbour superconducting data grid and a
 four-wire buffer. All values are illustrative. classes.buffer.capacity=4,
-qubit_second=0.25 and dirty_rate=0.25 are illustrative. Target 0.8 has no
-published topology schema (b-targets-dd3), so this JSON carries the class,
-capacity and timing projection only. **Grid connectivity is blocked**, not
-represented or claimed enforced by the VM. Do not use this projection as a
-routing-valid hardware model. Publishing a complete grid target waits for
-that contract; no private topology key or fabricated routing cost is used.
+qubit_second=0.25 and dirty_rate=0.25 are illustrative. This JSON carries the
+class, capacity and timing projection only, with no topology, so §8.2 reads it
+as all-to-all: do not use it as a routing-valid hardware model. The complete
+grid under ISA 0.9 §8.3 is `superconducting-grid-2d-illustrative.json`; this
+projection stays because a VM that lacks topology can still execute it.
 
 This is a deliberately coarse microsecond timing profile, chosen illustratively.
 The initial 20 ns / 200 ns profile exposed VM JCS defect b-targets-4kf; its
 valid scientific-notation witness remains in scripts/verify.py. No byte or hash
-expectation was changed to agree with the consumer. Connectivity still waits
-for b-targets-dd3.
+expectation was changed to agree with the consumer.
+
+Scheme `ccx-line-7t` is the one derived in the 2D sidecar. It was added because
+the ISA 0.9 `ref` recipe for `lift.add` emits ccx and this table has no ccx entry,
+so the normative inc8 object had no §8.3 match on this model (found by the recipe
+closure check in scripts/verify.py). Its leaf costs follow the gate table.

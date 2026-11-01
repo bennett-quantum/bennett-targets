@@ -1,23 +1,19 @@
 # Handoff: bennett-targets
 
-Updated 2026-11-01. Milestone 1 (epic **b-targets-4bn**) remains **BLOCKED** (checked with `bd show`).
+Updated 2026-11-01. Milestone 1 (epic **b-targets-4bn**) remains **BLOCKED**, now on consumers and one contract gap.
 
 ## State
-- ISA 0.8 target validator, three illustrative canonical target models and two importers (Qualtran, Azure) are
-  committed. Recorded evidence: `docs/verification.json`, `docs/PROGRESS.md`; plan: `docs/PLAN.md`.
-- Gate: `scripts/pre-push` (fmt, clippy, cargo test, build, `scripts/verify.py`). It exits **2 by design** at the
-  consumer harness while acceptance blockers are open: a recorded blocker is not a pass. The orchestrator has
-  proposed exit 0 with a loud report; not decided. This session did not rerun the gate.
-- `docs/verification.json` has an uncommitted modification in the working tree that this handoff does not own.
+- ISA 0.9 §8 validator: K9 eps_decade, K14 topology (schema, adjacency, default placement, vertex limits, scheme leaves).
+  Suite E: 17 executed, 21 published unavailable. E-topology-grid-09 runs here despite its marker, which concerns the reference.
+- Four illustrative models, including `superconducting-grid-2d-illustrative`. Azure rates import as count resources, never epsilon.
+- Gate: `scripts/pre-push`. It still exits **2 by design** while acceptance blockers are open, so a hook-enforced push cannot
+  pass. The proposal to exit 0 with a loud report is not decided; this repo did not change it.
 
-## Open blockers (all OPEN as of 2026-11-01)
-- **b-targets-dd3**: no topology schema in ISA 0.8, so no real connectivity-constrained grid target.
-- **b-targets-w8o**: `eps_decade` indexing undefined.
-- **b-targets-7dv**: target-backed normative inc8 example needs the published ref library expansion.
-- **b-targets-38r**: reference CLI target evaluation unavailable (as recorded in verification.json, refuses targets).
-- **b-targets-gyp**: import of probabilistic hardware errors / QEC models undefined.
-- Closed: b-targets-4kf (VM RFC 8785 small-exponent numbers; VM comparisons agreed after its fix).
+## Open
+- **b-targets-dt2**: VM rejects topology targets (`unknown field topology`).
+- **b-targets-7dv**: VM refuses target-backed inc8 (`gate-level expansion ... unpublished`), although ref-0.9 is bound and its
+  hash recomputed here. Awaits bennett-vm-47t-d.
+- **b-targets-38r**: reference refuses all targets; requested surface in b-isa-spec-xg3.
+- **b-targets-gyp**: QEC, hierarchy and symbolic import; proposed spec text in b-isa-spec-fd0. Do not implement before a decision.
 
-## Next
-Contract fixes for the blockers belong to the ISA spec, not here; never invent fields. When they land, rebaseline
-fixtures, rerun `scripts/pre-push`, and update verification.json. Orchestrator state: ../bennett/HANDOFF.md.
+Evidence: `docs/verification.json`. Orchestrator state: ../bennett/HANDOFF.md.

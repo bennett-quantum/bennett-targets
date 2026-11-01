@@ -16,7 +16,7 @@ fn rational(v: &Value) -> expr::Rational {
     }
 }
 #[test]
-fn all_sixteen_published_e_scenarios() {
+fn all_seventeen_published_e_scenarios() {
     let root = std::env::var_os("BENNETT_TARGETS_E_CASES")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
@@ -61,6 +61,34 @@ fn check_scenarios(root: &Path) {
                     &s["tables"]
                 )
                 .is_err());
+            }
+            // The published `unavailable` marker concerns the reference; ISA 0.9
+            // §8.3 decides this outcome, so this validator executes it.
+            "E-topology-grid-09" => {
+                let text = std::fs::read_to_string(path.join("target.json")).unwrap();
+                let t = Target::load(&text).unwrap();
+                assert_eq!(t.hash, expected["target_hash"]);
+                let pair = |k: &str| -> Vec<usize> {
+                    s[k].as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|v| v.as_u64().unwrap() as usize)
+                        .collect()
+                };
+                assert_eq!(expected["native_cx_adjacent"], "realisable");
+                t.check_placement(&pair("adjacent")).unwrap();
+                let err = t.check_placement(&pair("non_adjacent")).unwrap_err();
+                assert!(
+                    err.starts_with(expected["native_cx_non_adjacent"].as_str().unwrap()),
+                    "{err}"
+                );
+                assert_eq!(expected["absent_topology"], "all-to-all");
+                let mut open = t.document.clone();
+                open.as_object_mut().unwrap().remove("topology");
+                Target::load(&json::canonical(&open).unwrap())
+                    .unwrap()
+                    .check_placement(&pair("non_adjacent"))
+                    .unwrap();
             }
             "E-epsilon-zero-entry" | "E-mbu-must-be-false" | "E-target-staged-probe" => {
                 let input =
@@ -197,10 +225,7 @@ fn check_scenarios(root: &Path) {
             }
         }
     }
-    assert_eq!(
-        count, 16,
-        "all sixteen executable ISA 0.8 scenarios must run"
-    );
+    assert_eq!(count, 17, "all seventeen executable §8 scenarios must run");
     unavailable.sort();
     for (id, reason) in unavailable {
         println!("UNAVAILABLE {id}: {reason}");

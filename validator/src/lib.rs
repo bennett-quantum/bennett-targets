@@ -1,7 +1,8 @@
-//! Independent ISA 0.8 target validation and canonical identities.
+//! Independent ISA 0.9 target validation and canonical identities.
 pub mod expr;
 pub mod json;
 pub mod target;
+pub mod topology;
 pub use target::Target;
 pub fn validate(s: &str) -> Result<(), String> {
     Target::load(s).map(|_| ())

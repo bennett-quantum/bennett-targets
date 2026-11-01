@@ -1,0 +1,1 @@
+{"qubitParams":{"name":"illustrative-majorana","instructionSet":"Majorana","oneQubitMeasurementTime":"100 us","twoQubitJointMeasurementTime":"200 us","tGateTime":"1000 us","oneQubitMeasurementErrorRate":{"process":0.0001,"readout":0.0001},"twoQubitJointMeasurementErrorRate":{"process":0.0002,"readout":0.0002},"tGateErrorRate":0.05,"idleErrorRate":0.00001}}
