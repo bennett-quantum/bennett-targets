@@ -1,27 +1,23 @@
-State (2026-10-30 ~14:30Z, maintainer pause): main at 7c0465d, on origin/wip/targets-m1 (main not pushed: the gate
-exits 2 by design on the four published acceptance blockers dd3/w8o/7dv/38r; the orchestrator proposed exit 0 with a
-loud report). Today: re-baseline (verify.py, suite_e.rs, canonical.rs, cli.rs classify published-unavailable cases,
-pin seven canonical fixtures incl. the topology target's independently recomputed hash); VM comparisons 31/31 agree
-after the VM's JCS fix; b-targets-4kf closed. Read ../bennett/HANDOFF.md first.
-
 # Handoff: bennett-targets
 
-ISA 0.8 implementation and evidence committed; **milestone 1 remains blocked**.
-No push. Sole implementer changed this repository only; consumer code was neither
-read nor copied. See docs/PLAN.md, docs/PROGRESS.md and docs/verification.json.
+Updated 2026-11-01. Milestone 1 (epic **b-targets-4bn**) remains **BLOCKED** (checked with `bd show`).
 
-Build/tests/format/Clippy are in scripts/pre-push; it returns 2 at the final
-CLI consumer harness because recorded acceptance blockers are not passes.
-The reference target CLI is staged (6 refusals, zero semantic comparisons);
-VM agrees on 30 load cases but rejects valid small-exponent JCS (b-targets-4kf).
-Three models and two importer outputs execute native gates in VM. Normative
-inc8 target-backed execution refuses the unpublished ref library (b-targets-7dv).
-A real grid needs a topology schema (b-targets-dd3). eps_decade is undefined
-(b-targets-w8o); complete stochastic/QEC/hierarchy import needs b-targets-gyp.
-Reference CLI surface tracked as b-targets-38r. Epic b-targets-4bn stays blocked.
+## State
+- ISA 0.8 target validator, three illustrative canonical target models and two importers (Qualtran, Azure) are
+  committed. Recorded evidence: `docs/verification.json`, `docs/PROGRESS.md`; plan: `docs/PLAN.md`.
+- Gate: `scripts/pre-push` (fmt, clippy, cargo test, build, `scripts/verify.py`). It exits **2 by design** at the
+  consumer harness while acceptance blockers are open: a recorded blocker is not a pass. The orchestrator has
+  proposed exit 0 with a loud report; not decided. This session did not rerun the gate.
+- `docs/verification.json` has an uncommitted modification in the working tree that this handoff does not own.
 
-Next work depends on published contracts / consumer fixes. Re-run the exact
-local gate when available; never convert staged refusals or known divergences
-to success, omit capabilities, invent a topology field, or change canonical bytes
-to match the VM. Full future remit remains in PLAN. Beads must be exported before
-committing. No GitHub CI and no Dolt synchronization.
+## Open blockers (all OPEN as of 2026-11-01)
+- **b-targets-dd3**: no topology schema in ISA 0.8, so no real connectivity-constrained grid target.
+- **b-targets-w8o**: `eps_decade` indexing undefined.
+- **b-targets-7dv**: target-backed normative inc8 example needs the published ref library expansion.
+- **b-targets-38r**: reference CLI target evaluation unavailable (as recorded in verification.json, refuses targets).
+- **b-targets-gyp**: import of probabilistic hardware errors / QEC models undefined.
+- Closed: b-targets-4kf (VM RFC 8785 small-exponent numbers; VM comparisons agreed after its fix).
+
+## Next
+Contract fixes for the blockers belong to the ISA spec, not here; never invent fields. When they land, rebaseline
+fixtures, rerun `scripts/pre-push`, and update verification.json. Orchestrator state: ../bennett/HANDOFF.md.
