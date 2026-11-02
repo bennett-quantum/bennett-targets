@@ -415,6 +415,6 @@
   "acceptance": "BLOCKED: b-targets-38r, b-targets-7dv, b-targets-dt2",
   "binary_sha256": {
     "/home/tobias/Projects/bennett-workspace/bennett-vm/target/debug/bennett-vm": "572d3188ea8b2a38e6c3e8cdc9f685643e631d7527f2271e95c6aeeb8bea485b",
-    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "5fe5a95c87440a7cc5e3b0095adf8704424391d30e3e911a80be7bf6c7b61a24"
+    "/home/tobias/Projects/bennett-workspace/bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref": "41e018173b2c7c959334d92bcc8c7da153cbcd8b9dc8d3db709735a407bfd86b"
   }
 }

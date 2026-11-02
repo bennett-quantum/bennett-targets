@@ -347,5 +347,9 @@ require(REPORT['fixture_bytes'] == REPORT['fixture_hashes'] == 7,
 REPORT['binary_sha256'] = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (VM, REF)}
 (ROOT / 'docs/verification.json').write_text(json.dumps(REPORT, indent=2) + '\n')
 print(json.dumps({k:v for k,v in REPORT.items() if k != 'rejection_diagnostics'}, indent=2))
-# Known missing contract/consumer surfaces are never counted as successful completion.
-sys.exit(2)
+# Repo gate (advisor ruling, 2026-11-02): exit 0 means this repo's own checks passed; a failed check
+# has already raised through require(). Milestone status is reported, never an exit code: acceptance
+# stays BLOCKED until the blockers below close, and this is not a claim of successful completion.
+print('MILESTONE STATUS: ' + REPORT['acceptance'] + ' (repo gate passed; acceptance not claimed)')
+for blocker in REPORT['acceptance_blockers']:
+    print('  ' + blocker['id'] + ': ' + blocker['reason'])
