@@ -10,7 +10,32 @@ fn object(v: &Value) -> Result<&serde_json::Map<String, Value>> {
     v.as_object()
         .ok_or_else(|| "import: expected object".into())
 }
+/// §8.1: target numbers are exact rationals from their RFC 8785 decimal text.
+/// An imported number whose canonical text denotes another rational (binary64
+/// rounding, underflow) cannot be carried; fail loudly, never round.
+fn preserved(v: &Value, what: &str) -> Result<()> {
+    match v {
+        Value::Number(_) => {
+            let canonical = json::canonical(v)?;
+            if expr::decimal(&canonical)? != expr::number(v)? {
+                return Err(format!(
+                    "import: {what}: {v} cannot be preserved exactly as an RFC 8785 target number (canonical text {canonical}); refusing to round"
+                ));
+            }
+            Ok(())
+        }
+        Value::Array(a) => a
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, x)| preserved(x, &format!("{what}[{i}]"))),
+        Value::Object(o) => o
+            .iter()
+            .try_for_each(|(k, x)| preserved(x, &format!("{what}.{k}"))),
+        _ => Ok(()),
+    }
+}
 fn finish(d: Value, mapping: Value, quantities: Value, source: Value) -> Result<Value> {
+    preserved(&d, "target")?;
     let bytes = json::canonical(&d)?;
     let t = Target::load(&bytes)?;
     Ok(
@@ -153,6 +178,7 @@ fn rate_parts(v: &Value, field: &str, allow_object: bool) -> Result<Vec<(String,
     };
     for (_, n) in &parts {
         let p = expr::nonnegative(n).map_err(|e| format!("import: qubitParams.{field}: {e}"))?;
+        preserved(n, &format!("qubitParams.{field}"))?;
         if p > Rational::from_integer(1.into()) {
             return Err(format!(
                 "import: qubitParams.{field}: failure probability above 1"
