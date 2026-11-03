@@ -88,8 +88,40 @@ impl Target {
 
     /// Check every native leaf of an expansion; `placement` maps the leaf wire
     /// numbering of `expand` (controls, targets, then ancillae) to vertices.
+    /// Each wire must sit on a vertex of its resolved class (§8.3 "Each live wire
+    /// occupies one vertex of its resolved class"); the expansion's wires are
+    /// live together, so they occupy distinct vertices.
     pub fn check_leaves(&self, leaves: &[Leaf], placement: &[usize]) -> Result<()> {
+        let mut seen = BTreeMap::new();
         for leaf in leaves {
+            for w in &leaf.wires {
+                if let Some(v) = placement.get(*w) {
+                    if let Some(other) = seen.insert(*v, *w).filter(|o| o != w) {
+                        return Err(format!(
+                            "§8.3: wires {other} and {w} must occupy distinct vertices, both placed on {v}"
+                        ));
+                    }
+                }
+            }
+        }
+        let vertex_class = |v: usize| -> Result<Option<String>> {
+            let Some(t) = self.document.get("topology") else {
+                return Ok(None);
+            };
+            Ok(array(&t["vertices"], "vertices")?
+                .get(v)
+                .and_then(|x| x["class"].as_str())
+                .map(str::to_string))
+        };
+        for leaf in leaves {
+            if leaf.classes.len() != leaf.wires.len() {
+                return Err(format!(
+                    "§8.3: leaf {} has {} wires but {} resolved classes",
+                    leaf.op,
+                    leaf.wires.len(),
+                    leaf.classes.len()
+                ));
+            }
             let vertices = leaf
                 .wires
                 .iter()
@@ -100,6 +132,16 @@ impl Target {
                 })
                 .collect::<Result<Vec<_>>>()?;
             self.check_placement(&vertices)?;
+            for ((w, v), class) in leaf.wires.iter().zip(&vertices).zip(&leaf.classes) {
+                if let Some(vc) = vertex_class(*v)? {
+                    if &vc != class {
+                        return Err(format!(
+                            "§8.3/§11 placement: wire {w} of {} has resolved class {class} but vertex {v} has class {vc}",
+                            leaf.op
+                        ));
+                    }
+                }
+            }
         }
         Ok(())
     }

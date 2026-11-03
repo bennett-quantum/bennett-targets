@@ -12,6 +12,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub struct Leaf {
     pub op: String,
     pub wires: Vec<usize>,
+    /// The resolved operand class of each wire, in `wires` order (§8.3, §11).
+    pub classes: Vec<String>,
     pub charge: Charge,
     pub params: Vec<Rational>,
 }
@@ -65,6 +67,7 @@ impl Target {
             return Ok(vec![Leaf {
                 op: op.into(),
                 wires: (0..classes.len()).collect(),
+                classes: classes.iter().map(|c| c.to_string()).collect(),
                 charge,
                 params: theta.into_iter().collect(),
             }]);
@@ -160,6 +163,7 @@ impl Target {
                     leaves.push(Leaf {
                         op: op.into(),
                         wires,
+                        classes: cls.iter().map(|c| c.to_string()).collect(),
                         charge,
                         params,
                     });
