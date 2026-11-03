@@ -61,3 +61,30 @@ this repo adds no host/device object-format decision.
 **Provenance/R14:** reviewer gpt-6.1-sol xhigh under R14's Codex quota direction; the orchestrator queues a Claude cross-check of Codex-authored work.
 Claude trailers: `fa890b618`, `1b18d05fb`, `fd74ffc36`, `a0a95dd5c`, `0acda4485`, `610f48166`, `4e5ad05c1`, `5113d9aca`, `4a74c6275`, `0e9cbb33c`, `c788cbae4`, `dd7e657d7`, `dd0367119`, `3a5abda18`.
 No commit has an `Agent:`/`codex job` marker; unmarked provenance remains unconfirmed: `22f79a7e0`, `de74108a5`, `6c610e895`, `99d8afb93`, `4bcbbb5a8`, `169b1b12d`, `7c0465d70`, `69eb453cd`.
+
+## Round 2 (fixer)
+
+Fixer: Claude Opus 5.5 (code-quality policy rule 3; round-2 check by the opposite model). All five
+regressions live in `validator/tests/review_round2.rs`; each was run red against the reviewed
+code before its fix and is green after.
+
+- **b-targets-c5w (P0).** The importer checks every imported number against the rational its
+  RFC 8785 text denotes, per Azure field and again over the whole produced target; a value that
+  would round (`0.10000000000000001`, positive `1e-400`) fails loudly, never rounds.
+  Test `imported_rates_are_preserved_exactly_or_rejected`.
+- **b-targets-9oc (P0).** Leaves record each wire's resolved operand class. Placement rejects a
+  wire on a vertex of another class, and two wires of one expansion on the same vertex.
+  Test `placement_must_match_the_resolved_operand_class`.
+- **b-targets-z7b (P1).** Gates entries admit `realisation_model`. The reader checks
+  `bennett.native-model/1` against the accepted field set (version, kind, arity, basis,
+  parameter_bindings, control_models, data). `b-isa-spec-wk0k` is still open, so `operand_map`
+  is tolerated only when it is a permutation that resolves an admitted c. At constant zero
+  epsilon, a Gaussian-rational matrix must equal the exact §4.4 base (−X rejects). Unknown
+  versions are reported as unsupported. Encodings that 0.9 does not publish reject and cite
+  `b-targets-1wr`. Test `published_native_realisation_model_loads_and_is_verified`.
+- **b-targets-9vu (P1).** Decimal text must follow the JSON number grammar.
+  Test `malformed_decimal_text_rejects`.
+- **b-targets-4z8 (P1).** Every native match (the direct path, template leaves and
+  `Target::native`) enforces §4.4 own controls and c + targets operands. The existing
+  `runtime.rs` division-by-zero probe passed a one-operand cx; it now passes two, and its
+  assertion is unchanged. Test `native_operand_arity_is_checked`.
