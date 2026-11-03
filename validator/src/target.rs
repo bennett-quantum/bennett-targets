@@ -5,16 +5,16 @@ use crate::{
 use num_traits::Zero;
 use serde_json::Value;
 use std::collections::BTreeMap;
-fn obj(v: &Value) -> Result<&serde_json::Map<String, Value>> {
+pub(crate) fn obj(v: &Value) -> Result<&serde_json::Map<String, Value>> {
     v.as_object().ok_or_else(|| "§8.3: expected object".into())
 }
-fn arr(v: &Value) -> Result<&Vec<Value>> {
+pub(crate) fn arr(v: &Value) -> Result<&Vec<Value>> {
     v.as_array().ok_or_else(|| "§8.3: expected array".into())
 }
-fn text(v: &Value) -> Result<&str> {
+pub(crate) fn text(v: &Value) -> Result<&str> {
     v.as_str().ok_or_else(|| "§8.3: expected string".into())
 }
-fn fields(v: &Value, required: &[&str], optional: &[&str]) -> Result<()> {
+pub(crate) fn fields(v: &Value, required: &[&str], optional: &[&str]) -> Result<()> {
     let o = obj(v)?;
     for k in required {
         if !o.contains_key(*k) {
@@ -184,7 +184,7 @@ impl Target {
             fields(
                 g,
                 &["op", "classes", "controls", "epsilon", "cost"],
-                &["params"],
+                &["params", "realisation_model"],
             )?;
             self.op(&g["op"])?;
             controls(&g["controls"])?;
@@ -206,6 +206,9 @@ impl Target {
                 return Err(
                     "§8.1: an entry with epsilon 0 MUST NOT reference eps or log2inv_eps".into(),
                 );
+            }
+            if g.get("realisation_model").is_some() {
+                self.realisation_model(g)?;
             }
         }
         let mut names = std::collections::BTreeSet::new();
@@ -302,7 +305,7 @@ impl Target {
         }
         Ok(())
     }
-    fn constant_zero(&self, v: &Value) -> Result<bool> {
+    pub(crate) fn constant_zero(&self, v: &Value) -> Result<bool> {
         if contains_variable(v) {
             return Ok(false);
         }

@@ -1,6 +1,7 @@
 //! Independent ISA 0.9 target validation and canonical identities.
 pub mod expr;
 pub mod json;
+pub mod model;
 pub mod target;
 pub mod topology;
 pub use target::Target;

@@ -71,7 +71,9 @@ fn placement_must_match_the_resolved_operand_class() {
     t.check_leaves(&slow, &[0]).unwrap();
     assert!(t.check_leaves(&slow, &[1]).is_err());
     // Mixed-class operands: each wire is checked against its own vertex.
-    let cx = t.expand("cx", &["slow", "fast"], 1, 1, zero(), None).unwrap();
+    let cx = t
+        .expand("cx", &["slow", "fast"], 1, 1, zero(), None)
+        .unwrap();
     t.check_leaves(&cx, &[0, 1]).unwrap();
     assert!(t.check_leaves(&cx, &[1, 0]).is_err());
     // Distinct wires of one expansion occupy distinct vertices.
@@ -185,6 +187,9 @@ fn published_native_realisation_model_loads_and_is_verified() {
     let mut m = x_model();
     m["kind"] = json!("kraus");
     bad.push(("x", m, "unitary"));
+    let mut m = x_model();
+    m["operand_map"] = json!([0, 1]);
+    bad.push(("ccx", m, "operand_map")); // c=1 cannot hold ccx's two own controls
     for (op, model, needle) in bad {
         let err = with_model(op, model.clone()).unwrap_err();
         assert!(err.contains(needle), "{op} {model}: {err}");
@@ -236,7 +241,9 @@ fn native_operand_arity_is_checked() {
     }
     // Effective controls add operands: x under one inherited control has two.
     assert_eq!(
-        t.expand("x", &["data", "data"], 0, 1, zero(), None).unwrap()[0].wires,
+        t.expand("x", &["data", "data"], 0, 1, zero(), None)
+            .unwrap()[0]
+            .wires,
         vec![0, 1]
     );
     assert_eq!(
