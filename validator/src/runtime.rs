@@ -2,7 +2,7 @@
 use crate::{
     expr::{self, Bindings, Rational},
     json::{self, Result},
-    target::{covers, Charge},
+    target::{covers, operand_arity, targets, Charge},
     Target,
 };
 use num_traits::{One, Signed, ToPrimitive, Zero};
@@ -36,7 +36,7 @@ fn own(op: &str, n: usize) -> Result<usize> {
     Ok(match op {
         "cx" => 1,
         "ccx" => 2,
-        "mcx" => n.checked_sub(1).ok_or("§8.3: mcx needs target")?,
+        "mcx" => n.checked_sub(1).ok_or("§4.4: mcx needs a target")?,
         _ => 0,
     })
 }
@@ -54,6 +54,7 @@ impl Target {
             self.class(cls)?;
         }
         let inherited = c.checked_sub(k).ok_or("§8.3: c must include k")?;
+        operand_arity(op, k, c, classes.len())?;
         let limit = &self.document["capabilities"]["max_predicate_depth"];
         if limit != "unbounded" && inherited > expr::integer(limit)? {
             return Err("§8.3: max_predicate_depth exceeded".into());
@@ -84,12 +85,8 @@ impl Target {
                 env.insert("theta".into(), t);
             }
             let count = index(expr::eval(&s["ancillae"]["count"], &env, tables)?)?;
-            let targets = if op == "swap" || op == "cz" { 2 } else { 1 };
+            let targets = targets(op);
             let target_start = c;
-            let required = c + targets;
-            if classes.len() != required {
-                return Err("§8.3: operand classes must cover controls and targets".into());
-            }
             let anc_class = s["ancillae"]["class"].as_str().unwrap();
             let mut leaves = Vec::new();
             for g in array(&s["template"])? {

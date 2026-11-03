@@ -398,6 +398,7 @@ impl Target {
         if c < k {
             return Err("§8.3: total controls must include own controls".into());
         }
+        operand_arity(op, k, c, classes.len())?;
         let env = Bindings::from([
             ("k".into(), Rational::from_integer(k.into())),
             ("c".into(), Rational::from_integer(c.into())),
@@ -437,6 +438,37 @@ impl Target {
         }
         Ok(None)
     }
+}
+/// §4.4 targets per opcode: `swap a b` and `cz a b` have two, every other form one.
+pub(crate) fn targets(op: &str) -> usize {
+    if op == "swap" || op == "cz" {
+        2
+    } else {
+        1
+    }
+}
+/// §4.4 forms fix own controls (`cx c t`, `ccx c1 c2 t`; `mcx (c_1..c_k) t` any k);
+/// §8.3 operands are the c total controls (own, then effective) and the targets.
+pub(crate) fn operand_arity(op: &str, k: usize, c: usize, operands: usize) -> Result<()> {
+    let own = match op {
+        "cx" => Some(1),
+        "ccx" => Some(2),
+        "mcx" => None,
+        _ => Some(0),
+    };
+    if own.is_some_and(|own| own != k) {
+        return Err(format!(
+            "§4.4: {op} has {} own controls, not k={k}",
+            own.unwrap()
+        ));
+    }
+    let required = c + targets(op);
+    if operands != required {
+        return Err(format!(
+            "§4.4/§8.3: {op} with c={c} total controls takes {required} operands, got {operands}"
+        ));
+    }
+    Ok(())
 }
 pub(crate) fn covers(v: &Value, c: usize) -> Result<bool> {
     Ok(c >= expr::integer(&v["min"])? && bound(&v["max"])?.is_none_or(|max| c <= max))

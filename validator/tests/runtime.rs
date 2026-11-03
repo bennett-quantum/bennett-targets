@@ -36,7 +36,7 @@ fn matching_and_actual_bindings() {
         json!({"op":"/","args":[1,{"op":"-","args":[{"var":"k"},{"var":"k"}]}]});
     let t = Target::load(&json::canonical(&d).unwrap()).unwrap();
     assert!(t
-        .native("cx", &["fast"], 1, 1, expr::decimal("1").unwrap())
+        .native("cx", &["fast", "fast"], 1, 1, expr::decimal("1").unwrap())
         .unwrap_err()
         .contains("division by zero"));
 }
