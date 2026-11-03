@@ -7,7 +7,27 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 pub type Rational = BigRational;
 pub type Bindings = BTreeMap<String, Rational>;
+/// §8.1 decimal text: the JSON (RFC 8259) number grammar, nothing looser.
+fn well_formed(s: &str) -> bool {
+    let digits = |t: &str| !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit());
+    let (mantissa, exponent) = match s.split_once(['e', 'E']) {
+        Some((m, e)) => (m, Some(e.strip_prefix(['+', '-']).unwrap_or(e))),
+        None => (s, None),
+    };
+    let unsigned = mantissa.strip_prefix('-').unwrap_or(mantissa);
+    let (int, frac) = match unsigned.split_once('.') {
+        Some((i, f)) => (i, Some(f)),
+        None => (unsigned, None),
+    };
+    digits(int)
+        && (int == "0" || !int.starts_with('0'))
+        && frac.is_none_or(digits)
+        && exponent.is_none_or(digits)
+}
 pub fn decimal(s: &str) -> Result<Rational> {
+    if !well_formed(s) {
+        return Err(format!("§8.1: expected decimal number, got {s:?}"));
+    }
     let (mantissa, exponent) = s.split_once(['e', 'E']).unwrap_or((s, "0"));
     let exponent: i32 = exponent
         .parse()
