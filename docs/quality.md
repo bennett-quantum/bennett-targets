@@ -181,7 +181,7 @@ No deliberately worse file was written into the working tree.
     "validator/src/model.rs": {"complexity": 111, "lengths": [144, 49, 37, 35, 27, 24, 7, 3], "wrappers": 0},
     "validator/src/query.rs": {"complexity": 15, "lengths": [12, 12, 11], "wrappers": 0},
     "validator/src/runtime.rs": {"complexity": 270, "lengths": [191, 152, 23, 10, 8, 8, 4, 4], "wrappers": 0},
-    "validator/src/target.rs": {"complexity": 272, "lengths": [220, 58, 21, 17, 16, 16, 14, 12, 11, 11, 10, 8, 7, 7, 7, 7, 7, 6, 6, 3, 3, 3, 3], "wrappers": 1},
+    "validator/src/target.rs": {"complexity": 274, "lengths": [220, 58, 23, 17, 16, 16, 14, 12, 11, 11, 11, 10, 8, 7, 7, 7, 7, 7, 6, 6, 3, 3, 3, 3], "wrappers": 1},
     "validator/src/topology.rs": {"complexity": 78, "lengths": [54, 45, 28, 24, 11, 4], "wrappers": 0},
     "validator/tests/cases/canonical.rs": {"complexity": 8, "lengths": [34, 19, 10], "wrappers": 0},
     "validator/tests/cases/cli.rs": {"complexity": 10, "lengths": [55, 37, 36, 33, 12, 3], "wrappers": 0},
@@ -190,7 +190,7 @@ No deliberately worse file was written into the working tree.
     "validator/tests/cases/importers.rs": {"complexity": 17, "lengths": [57, 50, 43, 40, 39, 27, 25, 21, 9, 8, 3], "wrappers": 0},
     "validator/tests/cases/models.rs": {"complexity": 30, "lengths": [40, 30, 19, 17, 17], "wrappers": 0},
     "validator/tests/cases/pins.rs": {"complexity": 2, "lengths": [19], "wrappers": 0},
-    "validator/tests/cases/review_round2.rs": {"complexity": 10, "lengths": [69, 46, 42, 27, 26, 26, 23, 22, 21, 11, 8, 7, 6, 3, 3, 3], "wrappers": 0},
+    "validator/tests/cases/review_round2.rs": {"complexity": 14, "lengths": [69, 46, 42, 27, 26, 26, 23, 22, 21, 18, 11, 8, 7, 6, 3, 3, 3], "wrappers": 0},
     "validator/tests/cases/runtime.rs": {"complexity": 34, "lengths": [59, 40, 37, 33, 31, 30, 29, 24, 20, 17, 15, 15, 9, 7, 6], "wrappers": 0},
     "validator/tests/cases/suite_e.rs": {"complexity": 57, "lengths": [218, 33, 12, 7, 6, 3], "wrappers": 0},
     "validator/tests/cases/target09.rs": {"complexity": 14, "lengths": [49, 48, 20, 18, 16, 15, 15, 13, 12, 11, 10, 10, 9, 8, 8, 7, 7, 7, 3, 3, 3, 3, 3], "wrappers": 0},
@@ -260,3 +260,42 @@ It accounts for context-aware model checks, the binding-aware epsilon predicate,
 and their regression tests. The ratchet algorithm, litter allowance and
 identifier allowance are unchanged; these baseline changes need the same
 independent review as the correctness fix. No function exceeds 300 lines.
+
+
+The arity follow-up replaces the shared `c + targets(op)` computation from
+`origin/main..main` commit 299597e with checked addition. Overflow now returns a
+host-limit error naming the operation and total controls. New regressions failed
+with an addition panic before this fix, then passed for both `native` and
+`expand`, including two-target overflow at `usize::MAX - 1`. The allocation-free
+helper test admits representable counts up to `usize::MAX` and distinguishes
+ordinary arity mismatch from overflow. Only target.rs and review_round2.rs
+receive the corresponding explicit baseline changes for this fix and its tests.
+
+
+## Round-2 final verification
+
+Measured 2026-11-06T07:24:34Z in the same headless pinned environment. Both blocking
+review beads b-targets-nf7 and b-targets-5pv are closed with the commands and
+results below; b-targets-jxz remains open (its fixes exceed one line), along
+with the existing ISA-oracle b-targets-5jl and stale-progress b-targets-u8u.
+No gate pin or ratchet algorithm changed. Only the three modified Rust files
+received explicit structural baseline updates for independent review.
+
+```sh
+/usr/bin/time -f 'default wall=%e seconds' timeout 150s cargo test --offline --manifest-path validator/Cargo.toml -j3 -- --test-threads=4
+timeout 35s python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
+timeout 20s python3 -B scripts/quality_ratchet.py
+timeout 25s cargo fmt --manifest-path validator/Cargo.toml -- --check
+timeout 100s cargo clippy --offline --manifest-path validator/Cargo.toml -j3 --all-targets -- -D warnings
+timeout 180s cargo llvm-cov --offline --manifest-path validator/Cargo.toml -j3 --json --output-path .tmp/quality-targets/coverage-round2.json -- --test-threads=4
+```
+
+All passed. Default Rust tests: **71 passed** (3 unit, 68 integration), none
+ignored, **0.40 seconds** including the warm build. Python: **14 passed**.
+LLVM executable-line coverage: **93.86% (1834/1954 lines)**, including in-file
+unit tests; all 71 Rust tests also passed under instrumentation. The updated
+ratchet covers 31 source files, 212 functions and complexity mass 1460; one
+existing public forwarding wrapper, one existing litter path and zero product
+process identifiers remain. The largest production functions are schema (220
+lines), aggregate (191), expand (152), and realisation_model (144). The full
+consumer/push gate and independent review remain the orchestrator's merge work.

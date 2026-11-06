@@ -468,7 +468,9 @@ pub(crate) fn operand_arity(op: &str, k: usize, c: usize, operands: usize) -> Re
             own.unwrap()
         ));
     }
-    let required = c + targets(op);
+    let required = c.checked_add(targets(op)).ok_or_else(|| {
+        format!("host limit: §4.4/§8.3: {op} operand count with c={c} total controls exceeds address space")
+    })?;
     if operands != required {
         return Err(format!(
             "§4.4/§8.3: {op} with c={c} total controls takes {required} operands, got {operands}"
@@ -493,5 +495,23 @@ fn contains_unbound(v: &Value, env: &Bindings) -> bool {
         }
         Value::Array(a) => a.iter().any(|v| contains_unbound(v, env)),
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::operand_arity;
+
+    #[test]
+    fn operand_count_checks_preserve_the_address_space_boundary() {
+        assert!(operand_arity("x", 0, usize::MAX - 1, usize::MAX).is_ok());
+        assert!(operand_arity("swap", 0, usize::MAX - 2, usize::MAX).is_ok());
+        let mismatch = operand_arity("x", 0, usize::MAX - 1, 1).unwrap_err();
+        assert!(
+            mismatch.contains(&format!("takes {} operands, got 1", usize::MAX)),
+            "{mismatch}"
+        );
+        let overflow = operand_arity("x", 0, usize::MAX, 1).unwrap_err();
+        assert!(overflow.contains("host limit"), "{overflow}");
     }
 }

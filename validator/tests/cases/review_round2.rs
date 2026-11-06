@@ -375,3 +375,23 @@ fn zero_epsilon_control_expressions_check_models_at_resolution() {
         assert!(error.contains("contradicts"), "{op}: {error}");
     }
 }
+
+#[test]
+fn maximal_control_counts_return_arity_errors_without_panicking() {
+    let t = load(&base()).unwrap();
+    for (op, c) in [
+        ("x", usize::MAX),
+        ("swap", usize::MAX),
+        ("swap", usize::MAX - 1),
+    ] {
+        let native_error = t.native(op, &["data"], 0, c, zero()).unwrap_err();
+        let expand_error = t.expand(op, &["data"], 0, c, zero(), None).unwrap_err();
+        for error in [native_error, expand_error] {
+            assert!(
+                error.contains("host limit") && error.contains("operand count"),
+                "{op}: {error}"
+            );
+            assert!(error.contains(&format!("c={c}")), "{error}");
+        }
+    }
+}
