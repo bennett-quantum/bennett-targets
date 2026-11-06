@@ -113,8 +113,8 @@ fn mul(a: &Complex, b: &Complex) -> Complex {
 }
 
 /// The §4.4 base unitary that controlled_U wraps, when it is Gaussian-rational.
-/// None: the ideal (h, t, tdg, rx, ry, rz) is not a constant Gaussian-rational matrix.
-fn ideal(op: &str) -> Option<Vec<Vec<Complex>>> {
+/// None: the ideal is outside this fragment, or its angle is not yet resolved.
+fn ideal(op: &str, theta: Option<&Rational>) -> Option<Vec<Vec<Complex>>> {
     let n = |a: i64, b: i64| {
         (
             BigRational::from_integer(a.into()),
@@ -131,6 +131,7 @@ fn ideal(op: &str) -> Option<Vec<Vec<Complex>>> {
             .collect()
     };
     Some(match op {
+        "rx" | "ry" | "rz" if theta.is_some_and(Zero::is_zero) => diag(vec![n(1, 0), n(1, 0)]),
         "x" | "cx" | "ccx" | "mcx" => vec![vec![n(0, 0), n(1, 0)], vec![n(1, 0), n(0, 0)]],
         "s" => diag(vec![n(1, 0), n(0, 1)]),
         "sdg" => diag(vec![n(1, 0), n(0, -1)]),
@@ -214,6 +215,7 @@ impl Target {
         if gate["controls"]["min"] == gate["controls"]["max"] {
             static_context.insert("c".into(), crate::expr::number(&gate["controls"]["min"])?);
         }
+        let resolved = context.is_some();
         let context = context.unwrap_or(&static_context);
         let exact = self.zero_in_context(&gate["epsilon"], context)?;
         let mut allowed = vec!["k", "c", "eps"];
@@ -233,7 +235,13 @@ impl Target {
                     "§8.3 K86/§8.1: eps is bound only where evaluated epsilon is positive".into(),
                 );
             }
-            vars.insert(name.as_str(), context.get(binding));
+            let value = context.get(binding);
+            if resolved && value.is_none() {
+                return Err(format!(
+                    "§8.3 K86: parameter_bindings {name} -> {binding} is unbound in the resolved model context"
+                ));
+            }
+            vars.insert(name.as_str(), value);
         }
         fields(&m["data"], &["matrix"], &[]).map_err(|e| {
             format!("§8.3 K86: data carries the phase-bearing matrix; other representations: {UNPUBLISHED}: {e}")
@@ -290,7 +298,7 @@ impl Target {
         // every zero-epsilon context. Decided exactly here when the matrix is
         // Gaussian-rational; otherwise it remains a checker obligation.
         if let (true, Some(u)) = (exact, decided) {
-            if ideal(op).is_none_or(|v| v != u) {
+            if ideal(op, context.get("theta")).is_none_or(|v| v != u) {
                 return Err(format!(
                     "§8.3 K86: realisation_model contradicts the exact zero-epsilon §4.4 {op}"
                 ));
@@ -313,6 +321,46 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn resolved_model_context_requires_every_declared_binding() {
+        let t = Target::load(include_str!("../../targets/ideal-all-to-all.json")).unwrap();
+        let mut gate = t.document["gates"][0].clone();
+        gate["op"] = json!("rx");
+        gate["params"] = json!(["theta"]);
+        gate["epsilon"] = json!(2);
+        gate["realisation_model"] = json!({
+            "version":VERSION, "kind":"unitary", "arity":1, "basis":["t"],
+            "parameter_bindings":{"angle":"theta","own":"k","total":"c","accuracy":"eps"},
+            "control_models":{"kind":"controlled_U","controls":"c","disabled":"identity"},
+            "data":{"matrix":[
+                [[["0","1"],["0","1"]],[["1","1"],["0","1"]]],
+                [[["1","1"],["0","1"]],[["0","1"],["0","1"]]]
+            ]}
+        });
+        let context = Bindings::from([
+            ("k".into(), Rational::zero()),
+            ("c".into(), Rational::zero()),
+            ("eps".into(), Rational::from_integer(2.into())),
+            ("theta".into(), Rational::new(3.into(), 4.into())),
+        ]);
+        t.realisation_model(&gate, None).unwrap();
+        t.realisation_model(&gate, Some(&context)).unwrap();
+        for (alias, binding) in [
+            ("angle", "theta"),
+            ("own", "k"),
+            ("total", "c"),
+            ("accuracy", "eps"),
+        ] {
+            let mut incomplete = context.clone();
+            incomplete.remove(binding);
+            let error = t.realisation_model(&gate, Some(&incomplete)).unwrap_err();
+            assert!(
+                error.contains(alias) && error.contains(binding) && error.contains("unbound"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
     fn exact_native_matrices_act_on_each_basis_column() {
         let integer = |n: i64| BigRational::from_integer(n.into());
         // Independent §4.4 basis permutations and phases, including imaginary S.
@@ -327,7 +375,7 @@ mod tests {
             ),
             ("swap", vec![0, 2, 1, 3], vec![(1, 0); 4]),
         ] {
-            let matrix = ideal(op).unwrap();
+            let matrix = ideal(op, None).unwrap();
             for (column, row) in permutation.iter().enumerate() {
                 for (r, entries) in matrix.iter().enumerate() {
                     let (re, im) = if r == *row { phases[column] } else { (0, 0) };

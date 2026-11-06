@@ -178,10 +178,10 @@ No deliberately worse file was written into the working tree.
     "validator/src/json.rs": {"complexity": 73, "lengths": [107, 66, 36, 14, 10, 3], "wrappers": 0},
     "validator/src/lib.rs": {"complexity": 2, "lengths": [6, 3], "wrappers": 0},
     "validator/src/main.rs": {"complexity": 28, "lengths": [49, 9], "wrappers": 0},
-    "validator/src/model.rs": {"complexity": 111, "lengths": [144, 49, 37, 35, 27, 24, 7, 3], "wrappers": 0},
+    "validator/src/model.rs": {"complexity": 119, "lengths": [151, 49, 38, 38, 35, 27, 24, 7, 3], "wrappers": 0},
     "validator/src/query.rs": {"complexity": 15, "lengths": [12, 12, 11], "wrappers": 0},
-    "validator/src/runtime.rs": {"complexity": 270, "lengths": [191, 152, 23, 10, 8, 8, 4, 4], "wrappers": 0},
-    "validator/src/target.rs": {"complexity": 274, "lengths": [220, 58, 23, 17, 16, 16, 14, 12, 11, 11, 11, 10, 8, 7, 7, 7, 7, 7, 6, 6, 3, 3, 3, 3], "wrappers": 1},
+    "validator/src/runtime.rs": {"complexity": 274, "lengths": [191, 151, 23, 10, 8, 8, 4, 4], "wrappers": 0},
+    "validator/src/target.rs": {"complexity": 275, "lengths": [220, 61, 23, 17, 16, 16, 14, 12, 11, 11, 11, 10, 8, 7, 7, 7, 7, 7, 6, 6, 3, 3, 3, 3], "wrappers": 1},
     "validator/src/topology.rs": {"complexity": 78, "lengths": [54, 45, 28, 24, 11, 4], "wrappers": 0},
     "validator/tests/cases/canonical.rs": {"complexity": 8, "lengths": [34, 19, 10], "wrappers": 0},
     "validator/tests/cases/cli.rs": {"complexity": 10, "lengths": [55, 37, 36, 33, 12, 3], "wrappers": 0},
@@ -190,7 +190,7 @@ No deliberately worse file was written into the working tree.
     "validator/tests/cases/importers.rs": {"complexity": 17, "lengths": [57, 50, 43, 40, 39, 27, 25, 21, 9, 8, 3], "wrappers": 0},
     "validator/tests/cases/models.rs": {"complexity": 30, "lengths": [40, 30, 19, 17, 17], "wrappers": 0},
     "validator/tests/cases/pins.rs": {"complexity": 2, "lengths": [19], "wrappers": 0},
-    "validator/tests/cases/review_round2.rs": {"complexity": 14, "lengths": [69, 46, 42, 27, 26, 26, 23, 22, 21, 18, 11, 8, 7, 6, 3, 3, 3], "wrappers": 0},
+    "validator/tests/cases/review_round2.rs": {"complexity": 29, "lengths": [69, 46, 42, 40, 29, 27, 26, 26, 23, 22, 22, 22, 21, 18, 17, 14, 13, 13, 12, 11, 10, 9, 8, 7, 6, 3, 3, 3], "wrappers": 0},
     "validator/tests/cases/runtime.rs": {"complexity": 34, "lengths": [59, 40, 37, 33, 31, 30, 29, 24, 20, 17, 15, 15, 9, 7, 6], "wrappers": 0},
     "validator/tests/cases/suite_e.rs": {"complexity": 57, "lengths": [218, 33, 12, 7, 6, 3], "wrappers": 0},
     "validator/tests/cases/target09.rs": {"complexity": 14, "lengths": [49, 48, 20, 18, 16, 15, 15, 13, 12, 11, 10, 10, 9, 8, 8, 7, 7, 7, 3, 3, 3, 3, 3], "wrappers": 0},
@@ -299,3 +299,60 @@ existing public forwarding wrapper, one existing litter path and zero product
 process identifiers remain. The largest production functions are schema (220
 lines), aggregate (191), expand (152), and realisation_model (144). The full
 consumer/push gate and independent review remain the orchestrator's merge work.
+
+## Actual-angle model resolution
+
+Verified 2026-11-06T13:24:52Z against the same pinned ISA §§4.4/8.1/8.3 and
+accepted K86 text cited above. This repairs b-targets-7w4. The ISA pin still
+predates K86; no new pinned K86 oracle agreement is claimed.
+
+With production at reviewed head 4376395, the direct, coherently controlled,
+and template-leaf regressions all failed because a model resolving to −I was
+accepted for Rx(0). The same tests now reject for all tested axes. The two
+positive rotation tests passed before the fix and remain green. Separate
+red-first tests exposed missing declared context bindings and empty template
+parameter lists being accepted.
+
+Native matching now carries the exact angle value into the model environment.
+Template expressions resolve before leaf matching in the parent theta/repeat-i
+scope; the resulting leaf angle enters the leaf's own k/c/eps context.
+Declared template parameters require exactly one angle. A resolved model check
+errors on any missing declared k/c/eps/theta binding, even an unused alias;
+schema-time unknowns remain allowed. The §4.4 ideal at zero is +I for each of
+Rx, Ry and Rz, so correct rational identity models remain admitted.
+
+Positive nonzero models are hand-derived from P²=I:
+exp(−i theta P/2) = cos(theta/2) I − i sin(theta/2) P.
+Direct and controlled tests use theta=3/4 radians; the Ry scheme executes
+S†, Rx(theta/3), Rx(2 theta/3), S, with repeated leaf angles exactly 1/4
+and 1/2. An additional Rz(theta−theta) leaf at zero inside that nonzero
+scheme distinguishes the leaf binding from its parent's angle. Analytical
+trigonometric expressions still require independent checker reconstruction;
+these tests establish valid model admission and exact parameter propagation,
+not an interval accuracy proof.
+
+Final commands, in the headless environment documented above:
+
+```sh
+/usr/bin/time -f 'default wall=%e seconds' timeout 150s cargo test --offline --manifest-path validator/Cargo.toml -j3 -- --test-threads=4
+timeout 35s python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
+timeout 20s python3 -B scripts/quality_ratchet.py
+timeout 25s cargo fmt --manifest-path validator/Cargo.toml -- --check
+timeout 100s cargo clippy --offline --manifest-path validator/Cargo.toml -j3 --all-targets -- -D warnings
+timeout 180s cargo llvm-cov --offline --manifest-path validator/Cargo.toml -j3 --json --output-path .tmp/quality-targets/coverage-round3.json -- --test-threads=4
+```
+
+All passed: **79 Rust tests** (4 unit, 75 integration), none ignored,
+**3.38 seconds** including the warm build; **14 Python tests**; LLVM
+executable-line coverage **94.23% (1879/1994 lines)**. Formatting, strict
+Clippy and git diff --check passed.
+
+The explicit structural baseline update changes only model.rs, runtime.rs,
+target.rs and review_round2.rs. Their complexity masses are respectively
+119, 274, 275 and 29; total mass is 1488 across 224 functions and 31 files.
+The increases account for angle binding, missing-binding/parameter errors,
+zero-angle ideals and regressions. No function exceeds 300 lines. Ratchet
+algorithm, one existing wrapper, legacy litter allowance and zero identifier
+allowance are unchanged. Nonblocking b-targets-jxz/b-targets-vdy remain open,
+including the existing b-targets-5jl pin and b-targets-u8u stale-document
+items. Full consumer/push gating and independent review remain merge work.

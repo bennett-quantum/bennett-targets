@@ -395,3 +395,222 @@ fn maximal_control_counts_return_arity_errors_without_panicking() {
         }
     }
 }
+
+fn angle_identity_model(sign: &str) -> Value {
+    let mut model = x_model();
+    model["parameter_bindings"] = json!({"angle":"theta"});
+    let zero = json!(["0", "1"]);
+    let diagonal = json!([[sign, "1"], zero]);
+    let off_diagonal = json!([{"op":"-","args":[{"var":"angle"},{"var":"angle"}]},zero]);
+    model["data"]["matrix"] = json!([[diagonal, off_diagonal], [off_diagonal, diagonal]]);
+    model
+}
+
+fn rotation_document(op: &str, model: Value) -> Value {
+    let mut document = base();
+    document["gates"] = json!([{
+        "op":op, "classes":["*"], "controls":{"min":0,"max":"unbounded"},
+        "params":["theta"], "epsilon":{"op":"-","args":[{"var":"c"},{"var":"c"}]},
+        "cost":{"time":1}, "realisation_model":model
+    }]);
+    document["schemes"] = json!([]);
+    document
+}
+
+fn add_ry_scheme(document: &mut Value) {
+    let base = base();
+    for op in ["s", "sdg"] {
+        document["gates"]
+            .as_array_mut()
+            .unwrap()
+            .push(base["gates"][gate(&base, op)].clone());
+    }
+    // S Rx(2 theta/3) Rx(theta/3) S† = Ry(theta). Execution is
+    // right to left; both repeated leaves must bind their own evaluated angle.
+    document["schemes"] = json!([{
+        "name":"ry-via-rx", "realises":{"op":"ry","controls":{"min":0,"max":0},"params":["theta"]},
+        "ancillae":{"count":0,"class":"data","state":"clean"},
+        "template":[
+            {"gate":"sdg","wires":["t"]},
+            {"gate":"rx","wires":["t"],"params":[{"op":"/","args":[
+                {"op":"*","args":[{"var":"theta"},{"op":"+","args":[{"var":"i"},1]}]},3
+            ]}],"repeat":{"var":"i","from":0,"to":2}},
+            {"gate":"s","wires":["t"]}
+        ]
+    }]);
+}
+
+#[test]
+fn direct_rotation_model_binds_the_actual_angle() {
+    // §4.4: exp(0) = +I for every axis; -I differs by operator distance 2.
+    for op in ["rx", "ry", "rz"] {
+        let t = load(&rotation_document(op, angle_identity_model("-1"))).unwrap();
+        let error = t
+            .expand(op, &["data"], 0, 0, zero(), Some(zero()))
+            .unwrap_err();
+        assert!(
+            error.contains("contradicts") && error.contains(op),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn controlled_rotation_model_binds_the_actual_angle() {
+    // At theta=0 the ideal is I4; controlled -I is diag(1,1,-1,-1).
+    for op in ["rx", "ry", "rz"] {
+        let t = load(&rotation_document(op, angle_identity_model("-1"))).unwrap();
+        let error = t
+            .expand(op, &["data"; 2], 0, 1, zero(), Some(zero()))
+            .unwrap_err();
+        assert!(
+            error.contains("contradicts") && error.contains(op),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn template_rotation_model_binds_the_evaluated_leaf_angle() {
+    let mut document = rotation_document("rx", angle_identity_model("-1"));
+    add_ry_scheme(&mut document);
+    let error = load(&document)
+        .unwrap()
+        .expand("ry", &["data"], 0, 0, zero(), Some(zero()))
+        .unwrap_err();
+    assert!(
+        error.contains("contradicts") && error.contains("rx"),
+        "{error}"
+    );
+}
+
+#[test]
+fn exact_identity_rotation_models_remain_valid_at_zero() {
+    for op in ["rx", "ry", "rz"] {
+        let t = load(&rotation_document(op, angle_identity_model("1"))).unwrap();
+        for c in [0, 1] {
+            let leaves = t
+                .expand(op, &vec!["data"; c + 1], 0, c, zero(), Some(zero()))
+                .unwrap();
+            assert_eq!(leaves.len(), 1);
+            assert_eq!(leaves[0].params, vec![zero()]);
+            assert_eq!(leaves[0].charge.epsilon, zero());
+        }
+    }
+    let mut document = rotation_document("rx", angle_identity_model("1"));
+    add_ry_scheme(&mut document);
+    let leaves = load(&document)
+        .unwrap()
+        .expand("ry", &["data"], 0, 0, zero(), Some(zero()))
+        .unwrap();
+    assert_eq!(leaves.len(), 4);
+    assert_eq!(leaves[1].params, vec![zero()]);
+    assert_eq!(leaves[2].params, vec![zero()]);
+}
+
+fn analytical_rotation_model(op: &str) -> Value {
+    let mut model = x_model();
+    model["parameter_bindings"] = json!({"angle":"theta"});
+    // Hand-derived from exp(-i theta P/2), P²=I (§4.4): C I - i S P.
+    let half = json!({"op":"/","args":[{"var":"angle"},["2","1"]]});
+    let c = json!({"op":"cos","args":[half]});
+    let s = json!({"op":"sin","args":[half]});
+    let zero = json!(["0", "1"]);
+    let minus_s = json!({"op":"-","args":[zero,s]});
+    model["data"]["matrix"] = match op {
+        "rx" => json!([[[c, zero], [zero, minus_s]], [[zero, minus_s], [c, zero]]]),
+        "ry" => json!([[[c, zero], [minus_s, zero]], [[s, zero], [c, zero]]]),
+        "rz" => json!([[[c, minus_s], [zero, zero]], [[zero, zero], [c, s]]]),
+        _ => panic!("not a rotation: {op}"),
+    };
+    model
+}
+
+#[test]
+fn nontrivial_rotation_models_preserve_exact_angles_on_all_paths() {
+    // theta=3/4 radians: C=cos(3/8), S=sin(3/8); controlled_U adds
+    // identity on its disabled branch without changing either phase.
+    let angle = expr::decimal("0.75").unwrap();
+    for op in ["rx", "ry", "rz"] {
+        let t = load(&rotation_document(op, analytical_rotation_model(op))).unwrap();
+        for c in [0, 1] {
+            let leaves = t
+                .expand(op, &vec!["data"; c + 1], 0, c, zero(), Some(angle.clone()))
+                .unwrap();
+            assert_eq!(leaves.len(), 1);
+            assert_eq!(leaves[0].op, op);
+            assert_eq!(
+                leaves[0].params,
+                vec![expr::Rational::new(3.into(), 4.into())]
+            );
+            assert_eq!(leaves[0].charge.epsilon, zero());
+        }
+    }
+    let mut document = rotation_document("rx", analytical_rotation_model("rx"));
+    add_ry_scheme(&mut document);
+    let leaves = load(&document)
+        .unwrap()
+        .expand("ry", &["data"], 0, 0, zero(), Some(angle))
+        .unwrap();
+    assert_eq!(
+        leaves.iter().map(|l| l.op.as_str()).collect::<Vec<_>>(),
+        ["sdg", "rx", "rx", "s"]
+    );
+    // (i+1)*3/4/3 = 1/4, 1/2 at i=0,1, giving Ry(3/4).
+    assert_eq!(
+        leaves[1].params,
+        vec![expr::Rational::new(1.into(), 4.into())]
+    );
+    assert_eq!(
+        leaves[2].params,
+        vec![expr::Rational::new(1.into(), 2.into())]
+    );
+    assert!(leaves.iter().all(|l| l.charge.epsilon == zero()));
+}
+
+#[test]
+fn template_params_require_one_resolved_angle() {
+    let mut document = rotation_document("rx", analytical_rotation_model("rx"));
+    add_ry_scheme(&mut document);
+    for params in [json!([]), json!([0, 1])] {
+        document["schemes"][0]["template"][1]["params"] = params;
+        let error = load(&document)
+            .and_then(|t| t.expand("ry", &["data"], 0, 0, zero(), Some(zero())))
+            .unwrap_err();
+        assert!(
+            error.contains("params") && error.contains("one angle"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn template_model_uses_the_leaf_angle_instead_of_the_scheme_angle() {
+    let mut document = rotation_document("rx", analytical_rotation_model("rx"));
+    add_ry_scheme(&mut document);
+    let rz = rotation_document("rz", angle_identity_model("1"))["gates"][0].clone();
+    document["gates"].as_array_mut().unwrap().push(rz);
+    // Append Rz(theta-theta) = I to the correct Ry(theta) expansion. The
+    // rational identity model agrees at leaf angle 0, not parent angle 3/4.
+    document["schemes"][0]["template"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"gate":"rz","wires":["t"],"params":[
+            {"op":"-","args":[{"var":"theta"},{"var":"theta"}]}
+        ]}));
+    let leaves = load(&document)
+        .unwrap()
+        .expand(
+            "ry",
+            &["data"],
+            0,
+            0,
+            zero(),
+            Some(expr::decimal("0.75").unwrap()),
+        )
+        .unwrap();
+    assert_eq!(leaves.len(), 5);
+    assert_eq!(leaves[4].op, "rz");
+    assert_eq!(leaves[4].params, vec![zero()]);
+    assert_eq!(leaves[4].charge.epsilon, zero());
+}

@@ -383,7 +383,7 @@ impl Target {
         c: usize,
         eps: Rational,
     ) -> Result<Option<Charge>> {
-        self.native_parameters(op, classes, k, c, eps, false)
+        self.native_parameters(op, classes, k, c, eps, None)
     }
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn native_parameters(
@@ -393,7 +393,7 @@ impl Target {
         k: usize,
         c: usize,
         eps: Rational,
-        parametric: bool,
+        theta: Option<&Rational>,
     ) -> Result<Option<Charge>> {
         for cls in classes {
             self.class(cls)?;
@@ -402,15 +402,18 @@ impl Target {
             return Err("§8.3: total controls must include own controls".into());
         }
         operand_arity(op, k, c, classes.len())?;
-        let env = Bindings::from([
+        let mut env = Bindings::from([
             ("k".into(), Rational::from_integer(k.into())),
             ("c".into(), Rational::from_integer(c.into())),
             ("eps".into(), eps.clone()),
         ]);
+        if let Some(theta) = theta {
+            env.insert("theta".into(), theta.clone());
+        }
         for g in arr(&self.document["gates"])? {
             if g["op"] != op
                 || !covers(&g["controls"], c)?
-                || g.get("params").is_some() != parametric
+                || g.get("params").is_some() != theta.is_some()
             {
                 continue;
             }

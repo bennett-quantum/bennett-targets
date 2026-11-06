@@ -73,7 +73,7 @@ impl Target {
             return Err("§8.3: max_predicate_depth exceeded".into());
         }
         if let Some(charge) =
-            self.native_parameters(op, classes, k, c, eps.clone(), theta.is_some())?
+            self.native_parameters(op, classes, k, c, eps.clone(), theta.as_ref())?
         {
             return Ok(vec![Leaf {
                 op: op.into(),
@@ -181,23 +181,22 @@ impl Target {
                         .as_str()
                         .ok_or("§8.3: template gate must be a string")?;
                     let k = own(op, wires.len())?;
-                    let charge=self.native_parameters(op,&cls,k,k,eps.clone(),g.get("params").is_some())?.ok_or("§8.3: Every template gate MUST itself match a gates entry (schemes do not nest)")?;
-                    let params = g
+                    let theta = g
                         .get("params")
-                        .map(|p| {
-                            array(p)?
-                                .iter()
-                                .map(|v| expr::eval(v, &env, tables))
-                                .collect::<Result<Vec<_>>>()
+                        .map(|p| match array(p)?.as_slice() {
+                            [angle] => expr::eval(angle, &env, tables),
+                            _ => Err("§8.3: template params must contain exactly one angle".into()),
                         })
-                        .transpose()?
-                        .unwrap_or_default();
+                        .transpose()?;
+                    let charge = self
+                        .native_parameters(op, &cls, k, k, eps.clone(), theta.as_ref())?
+                        .ok_or("§8.3: Every template gate MUST itself match a gates entry (schemes do not nest)")?;
                     leaves.push(Leaf {
                         op: op.into(),
                         wires,
                         classes: cls.iter().map(|c| c.to_string()).collect(),
                         charge,
-                        params,
+                        params: theta.into_iter().collect(),
                     });
                     i += 1;
                 }
