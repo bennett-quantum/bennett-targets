@@ -1,8 +1,11 @@
 # Validator quality measurements
 
-Round 1 uses only the ISA checkout selected by `gate.toml` through
-`.tmp/gate/cache/bennett-isa-spec@ecaaac060c44/bennett-isa-spec`.
-Tests and the consumer harness fail when the selected cache is absent.
+Sibling reads use only the commits selected by `gate.toml`. Locally they resolve
+through `.tmp/gate/cache/<name>@<sha12>/<name>`; isolated gate checks use
+`BENNETT_GATE_LAYOUT/<name>`, supplied by the gate's `{layout}` placeholder.
+Both Rust tests and the Python consumer harness verify the selected checkout's
+full Git HEAD before reading it. Missing paths, non-repositories and mismatched
+HEADs fail; an explicit layout never falls back to cache or live siblings.
 
 The five round-2 regressions pass (import precision, resolved placement classes,
 native model admission, decimal grammar and native operand arity):
@@ -167,10 +170,10 @@ No deliberately worse file was written into the working tree.
   "files": {
     "scripts/capture_importer_samples.py": {"complexity": 3, "lengths": [38], "wrappers": 0},
     "scripts/consumer_report.py": {"complexity": 7, "lengths": [9], "wrappers": 0},
-    "scripts/gate_pin.py": {"complexity": 7, "lengths": [12], "wrappers": 0},
+    "scripts/gate_pin.py": {"complexity": 12, "lengths": [27], "wrappers": 0},
     "scripts/quality_ratchet.py": {"complexity": 114, "lengths": [40, 22, 20, 18, 15, 13, 8], "wrappers": 0},
     "scripts/test_consumer_report.py": {"complexity": 1, "lengths": [5, 3], "wrappers": 0},
-    "scripts/test_gate_pin.py": {"complexity": 2, "lengths": [8, 8, 8], "wrappers": 0},
+    "scripts/test_gate_pin.py": {"complexity": 8, "lengths": [17, 15, 8, 7, 6, 5, 4, 4, 4, 3], "wrappers": 0},
     "scripts/test_quality_ratchet.py": {"complexity": 1, "lengths": [13, 11, 11, 8, 8, 8, 7, 7, 7, 6, 5, 5], "wrappers": 0},
     "scripts/verify.py": {"complexity": 103, "lengths": [24, 14, 13, 11, 9, 8, 4, 3, 2, 2, 2], "wrappers": 0},
     "validator/src/expr.rs": {"complexity": 88, "lengths": [81, 49, 23, 16, 12, 9, 8, 8, 7, 6], "wrappers": 0},
@@ -189,13 +192,13 @@ No deliberately worse file was written into the working tree.
     "validator/tests/cases/expressions.rs": {"complexity": 1, "lengths": [35, 11], "wrappers": 0},
     "validator/tests/cases/importers.rs": {"complexity": 17, "lengths": [57, 50, 43, 40, 39, 27, 25, 21, 9, 8, 3], "wrappers": 0},
     "validator/tests/cases/models.rs": {"complexity": 30, "lengths": [40, 30, 19, 17, 17], "wrappers": 0},
-    "validator/tests/cases/pins.rs": {"complexity": 2, "lengths": [19], "wrappers": 0},
+    "validator/tests/cases/pins.rs": {"complexity": 11, "lengths": [28, 26, 25, 19, 17, 13, 10, 7, 3], "wrappers": 0},
     "validator/tests/cases/review_round2.rs": {"complexity": 29, "lengths": [69, 46, 42, 40, 29, 27, 26, 26, 23, 22, 22, 22, 21, 18, 17, 14, 13, 13, 12, 11, 10, 9, 8, 7, 6, 3, 3, 3], "wrappers": 0},
     "validator/tests/cases/runtime.rs": {"complexity": 34, "lengths": [59, 40, 37, 33, 31, 30, 29, 24, 20, 17, 15, 15, 9, 7, 6], "wrappers": 0},
     "validator/tests/cases/suite_e.rs": {"complexity": 57, "lengths": [218, 33, 12, 7, 6, 3], "wrappers": 0},
     "validator/tests/cases/target09.rs": {"complexity": 14, "lengths": [49, 48, 20, 18, 16, 15, 15, 13, 12, 11, 10, 10, 9, 8, 8, 7, 7, 7, 3, 3, 3, 3, 3], "wrappers": 0},
     "validator/tests/integration.rs": {"complexity": 0, "lengths": [], "wrappers": 0},
-    "validator/tests/support/pins.rs": {"complexity": 4, "lengths": [25, 5], "wrappers": 0}
+    "validator/tests/support/pins.rs": {"complexity": 14, "lengths": [67, 7], "wrappers": 0}
   },
   "litter": ["docs/PROGRESS.md"],
   "process_identifiers": {}
@@ -356,3 +359,44 @@ algorithm, one existing wrapper, legacy litter allowance and zero identifier
 allowance are unchanged. Nonblocking b-targets-jxz/b-targets-vdy remain open,
 including the existing b-targets-5jl pin and b-targets-u8u stale-document
 items. Full consumer/push gating and independent review remain merge work.
+
+## Pinned sibling run-layout resolution
+
+The isolated gate creates a clean consumer worktree with pinned siblings beside
+it; it does not create a cache inside that worktree. The previous Rust and Python
+resolvers only understood the cache layout. `gate.toml` now supplies
+`BENNETT_GATE_LAYOUT = "{layout}"`, and both resolvers honour that selection.
+The Python consumer harness uses the same resolver for its ISA and VM pins;
+all Rust ISA fixture reads use the Rust resolver. Both check full Git HEAD,
+reject missing Git metadata, and ignore inherited `GIT_*` overrides when
+querying the selected checkout. Errors name the expected commit, selected path
+and unused live sibling path, plus the actual HEAD on a mismatch.
+
+Red-first checks used real temporary Git repositories. Before the behavior
+change, the five focused Rust tests had four failures; the seven Python tests
+reported three failures and two errors. They now cover successful cache and
+explicit-layout resolution, mismatched HEADs in both layouts, absent metadata,
+and refusal to use a matching cache/live sibling when a selected layout is
+missing. The Rust resolver gained an explicit layout argument as a test seam
+before the red run; its old cache-only behavior was retained for that run.
+
+Local verification in the headless environment above:
+
+```sh
+timeout 150s cargo test --offline --manifest-path validator/Cargo.toml -j3 -- --test-threads=4
+timeout 30s cargo fmt --manifest-path validator/Cargo.toml -- --check
+timeout 100s cargo clippy --offline --manifest-path validator/Cargo.toml -j3 --all-targets -- -D warnings
+timeout 35s python3 -B -m unittest discover -s scripts -p 'test_*.py' -v
+timeout 20s python3 -B scripts/quality_ratchet.py
+```
+
+All passed: **83 Rust tests** (4 unit, 79 integration), none ignored, and
+**18 Python tests**. The baseline update is confined to gate_pin.py,
+test_gate_pin.py and the two Rust pin support/test files: 31 files,
+239 functions, complexity mass 1518. Wrapper, litter and identifier
+allowances and the ratchet algorithm are unchanged.
+
+The pinned gate tool supports `run --repo <main-checkout> --sha <commit>` for
+a committed branch SHA. That runs all seven checks under isolation without
+pushing; its per-check results belong in the main checkout's
+`.tmp/gate/records/<commit>.json` and this job's ignored progress file.
