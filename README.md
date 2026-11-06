@@ -1,8 +1,10 @@
 # bennett-targets
 
 Independent Bennett ISA 0.9 §8 (target 0.9) target validator, canonical descriptions and first
-Qualtran/Azure adapters. See [PLAN](docs/PLAN.md), [progress](docs/PROGRESS.md),
+Qualtran/Azure adapters. See [PLAN](docs/PLAN.md),
 [models](targets/README.md), and [field mappings](importers/README.md).
+
+[Ecosystem handoff](../bennett/HANDOFF.md).
 
 Run `scripts/pre-push` from this checkout for the pinned consumer gate. For the
 fast default validator checks:

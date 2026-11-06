@@ -91,11 +91,12 @@ tracked lock/backup/cache candidates; Cargo.lock is the dependency lockfile and
 is intentionally retained. Added ignore rules cover runtime locks, .darc,
 Python caches and logs. There are no actual issue/job identifiers in Rust
 production source or maintained Python implementation strings. Consumer reports
-use stable capability keys, with the open-issue mapping retained in HANDOFF.md.
+use stable capability keys, with the open-issue mapping below.
 
 Remaining scope and evidence limits:
 
-- b-targets-38r / b-targets-7dv / b-targets-dt2 remain consumer limitations at the
+- b-targets-38r (`reference-target-cli`), b-targets-7dv (`target-backed-inc8`) and
+  b-targets-dt2 (`vm-topology`) remain consumer limitations at the
   existing pins; this pass does not claim a new consumer agreement. The missing
   successful 2D-grid timing baseline was added to the harness, but its conditional
   consumer path needs the merge gate. The other b-targets-5gr nits were addressed;
@@ -105,7 +106,7 @@ Remaining scope and evidence limits:
   supported hardware parameters; the full report is rejected and preserved.
 - The ISA pin predates bennett.native-model/1 (K86). Round-2 native-model tests
   enforce the accepted review contract, while the pinned suite cannot supply a
-  K86 oracle. This limitation is filed for the orchestrator to repin once the
+  K86 oracle. b-targets-5jl asks the orchestrator to repin once the
   intended published revision and conformance vectors are selected.
 
 ## Push quality ratchet
@@ -200,3 +201,30 @@ No deliberately worse file was written into the working tree.
   "process_identifiers": {}
 }
 ```
+
+## Continuation verification
+
+Verified 2026-11-06T07:04:35Z after reviewing `git diff main...job/quality-targets`
+against COMMON's anti-slop rules. The source process-date comment is removed,
+and the unchanged Toffoli tolerance now has a named bound and arithmetic rationale.
+HANDOFF.md is retired; README points to the ecosystem handoff. The legacy tracked
+progress file remains explicitly recorded under b-targets-u8u, outside this job's
+owned paths. b-targets-2jb (runtime mutation failures) and b-targets-c3j (numeric
+and sample provenance) were filed and closed after local reverification; the
+consumer-dependent b-targets-5gr and ISA-pin/oracle b-targets-5jl remain open.
+
+- `/usr/bin/time -f 'default wall=%e seconds' timeout 150s cargo test --offline --manifest-path validator/Cargo.toml -j3 -- --test-threads=4`: **65 passed**, none ignored, **2.91 seconds** including compilation.
+- `timeout 30s cargo fmt --manifest-path validator/Cargo.toml -- --check`: passed.
+- `timeout 120s cargo clippy --offline --manifest-path validator/Cargo.toml -j3 --all-targets -- -D warnings`: passed.
+- `timeout 30s python3 -m unittest discover -s scripts -p 'test_*.py' -v`: **14 passed**, including nine metric/ratchet tests.
+- `python3 scripts/quality_ratchet.py`: passed for **31 source files**, with one pre-existing public forwarding wrapper, one legacy litter path and zero product process identifiers.
+- The exact quality gate argv in a TMPDIR scratch repository passed the baseline
+  (exit 0), then rejected lengths `[5] -> [7]` and complexity `1 -> 3` (exit 1).
+  Evidence: `.tmp/quality-targets/ratchet-red-green.log`; no worsened scratch file
+  was placed in the tree. The HANDOFF retirement/pointer check also ran red then green.
+
+These commands use the headless job environment above. LLVM coverage remains the
+93.55% measurement recorded for the first attempt; this continuation adds the
+Python gate and documents the existing floating-point test bound. The full
+pinned consumer/push gate and independent/council review remain the orchestrator's
+merge checks; no new consumer agreement is claimed here.
