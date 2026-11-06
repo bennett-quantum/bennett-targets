@@ -139,6 +139,9 @@ fn simulate(leaves: &[bennett_targets_validator::runtime::Leaf], basis: usize) -
 /// takes a gates entry before a scheme, so the model must carry only the scheme.
 #[test]
 fn grid_2d_ccx_scheme_is_toffoli_and_respects_adjacency() {
+    // Two H and seven T/TDG leaves use fewer than 64 rounded operations per
+    // amplitude path; allow two epsilons each, including the 1/sqrt(2) constant.
+    const AMPLITUDE_ROUNDING_BOUND: f64 = 128.0 * f64::EPSILON;
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../targets");
     let s =
         std::fs::read_to_string(root.join("superconducting-grid-2d-illustrative.json")).unwrap();
@@ -168,7 +171,8 @@ fn grid_2d_ccx_scheme_is_toffoli_and_respects_adjacency() {
         for (i, a) in out.iter().enumerate() {
             let want = if i == expected { 1.0 } else { 0.0 };
             assert!(
-                (a.0 - want).abs() < 128.0 * f64::EPSILON && a.1.abs() < 128.0 * f64::EPSILON,
+                (a.0 - want).abs() < AMPLITUDE_ROUNDING_BOUND
+                    && a.1.abs() < AMPLITUDE_ROUNDING_BOUND,
                 "basis {basis} amplitude {i}: {a:?}"
             );
         }

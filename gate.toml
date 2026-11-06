@@ -30,6 +30,10 @@ name = "pin-resolver"
 argv = ["python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"]
 
 [[check]]
+name = "quality-baseline"
+argv = ["python3", "scripts/quality_ratchet.py"]
+
+[[check]]
 name = "verify"
 argv = ["python3", "scripts/verify.py"]
 
