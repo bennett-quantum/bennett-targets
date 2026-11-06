@@ -17,3 +17,12 @@ Cargo.lock.bak
 *.gate.lock*
 
 .tmp/
+
+# Generated Python/cache/backup files; keep the reproducible Cargo.lock.
+__pycache__/
+*.pyc
+*.log
+*.darc
+.beads/**/LOCK
+.beads/**/.lock
+.beads/**/*.lock

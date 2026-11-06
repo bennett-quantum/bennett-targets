@@ -1,0 +1,8 @@
+{
+  "source_url": "https://pypi.org/project/qualtran/0.7.0/",
+  "producer": "qualtran==0.7.0",
+  "recipe": "get_cost_value(QFTTextBook(8), QECGatesCost()).asdict()",
+  "scope": "Actual resource-counter output, not measured hardware; asdict omits zero fields.",
+  "retrieved_utc": "2026-11-06T06:36:54Z",
+  "sha256": "a90d064daa9580601c8f556deefe99dc4d92cd9169511e6d0d78e249da1cea1a"
+}

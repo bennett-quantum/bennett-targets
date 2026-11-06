@@ -6,6 +6,8 @@ timeout_s = 7200
 
 [env]
 CARGO_TARGET_DIR = "{root}/.tmp/gate-target"
+CARGO_BUILD_JOBS = "3"
+RUST_TEST_THREADS = "4"
 
 [[check]]
 name = "fmt"
@@ -24,6 +26,10 @@ name = "build"
 argv = ["cargo", "build", "--offline", "--manifest-path", "validator/Cargo.toml"]
 
 [[check]]
+name = "pin-resolver"
+argv = ["python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"]
+
+[[check]]
 name = "verify"
 argv = ["python3", "scripts/verify.py"]
 
@@ -36,7 +42,7 @@ name = "reference interpreter (debug)"
 cwd = "reference-interpreter"
 argv = ["cargo", "build", "--offline"]
 outputs = ["reference-interpreter/target/debug/bennett-isa-ref"]
-env = { CARGO_BUILD_JOBS = "4" }
+env = { CARGO_BUILD_JOBS = "3" }
 
 [siblings."bennett-vm"]
 sha = "d9cb68433c08f4db8f7d8c90f121a8adae51759b"
@@ -47,5 +53,5 @@ name = "vm binary"
 argv = ["cargo", "build", "--offline"]
 outputs = ["target/debug/bennett-vm"]
 needs = ["bennett-isa-spec"]
-env = { CARGO_BUILD_JOBS = "4" }
+env = { CARGO_BUILD_JOBS = "3" }
 

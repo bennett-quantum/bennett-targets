@@ -84,5 +84,19 @@ objects and every other unknown field are explicit errors, not dropped scope.
 QEC/code-distance formulae, factory throughput and hierarchy need a contract that
 §8 does not have: b-targets-gyp, with exact proposed spec text in b-isa-spec-fd0.
 
-The hand-written fixtures are illustrative, with all fields covered by tests;
-they are executable translation witnesses, not physical hardware.
+The four original hand-written fixtures remain illustrative translation witnesses.
+Real external-format fixtures now complement them:
+
+| Fixture | Origin and scope |
+| --- | --- |
+| `qualtran-qft8-real.json` | Actual `get_cost_value(QFTTextBook(8), QECGatesCost()).asdict()` output from Qualtran 0.7.0: T=6, AND=28, Clifford=47, rotation=15, measurement=28. Upstream omits zero Toffoli/CSwap fields; tests check every default flag. |
+| `azure-estimator-report-real.json` | Unmodified [Microsoft estimator report](https://github.com/microsoft/qdk/blob/e5d6dbeabc5b4fcb557269c7aa37a03c79ae4e85/source/resource_estimator/src/system/test_report.json), retained as published. It is an upstream test output artifact, not a newly submitted cloud job or hardware measurement. |
+| `azure-estimator-qubit-params-real.json` | Exact `/jobParams/qubitParams` projection from that report, wrapped as `{"qubitParams":...}`. Tests assert structural identity with the source, exercise the actual adapter and reject the complete report explicitly. QEC and physical estimates are not silently dropped. |
+
+Each real fixture has a `.provenance.json` sidecar containing its source URL,
+retrieval UTC timestamp (2026-11-06), SHA-256 and capture/extraction method. Normal
+tests read only these checked-in files, with no package installs or network.
+To refresh intentionally, install `qualtran==0.7.0` in an isolated environment and
+run `python scripts/capture_importer_samples.py` (requires network). The script
+invokes the real counter, downloads the pinned Microsoft artifact and records
+the retrieval time. Neither example supplies measured physical-device data.

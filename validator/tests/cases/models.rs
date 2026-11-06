@@ -1,4 +1,58 @@
+use bennett_targets_validator::expr;
 use bennett_targets_validator::Target;
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+fn numbers(value: &Value, path: &str, out: &mut BTreeMap<String, expr::Rational>) {
+    match value {
+        Value::Number(_) => {
+            out.insert(path.into(), expr::number(value).unwrap());
+        }
+        Value::Array(values) => {
+            for (i, value) in values.iter().enumerate() {
+                numbers(value, &format!("{path}/{i}"), out);
+            }
+        }
+        Value::Object(values) => {
+            for (key, value) in values {
+                let key = key.replace('~', "~0").replace('/', "~1");
+                numbers(value, &format!("{path}/{key}"), out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn check_numeric_provenance(document: &Value, sidecar: &str) -> Result<(), String> {
+    if !sidecar.contains("ISA 0.9 §8") {
+        return Err("sidecar must cite ISA 0.9 §8".into());
+    }
+    let mut claims = BTreeMap::new();
+    for line in sidecar.lines().filter(|line| line.starts_with("| `/")) {
+        let columns: Vec<_> = line.split('|').map(str::trim).collect();
+        if columns.len() != 5 || columns[3].is_empty() {
+            return Err(format!("malformed numeric source row: {line}"));
+        }
+        let path = columns[1].trim_matches('`');
+        let value = expr::decimal(columns[2].trim_matches('`'))?;
+        if claims.insert(path.to_string(), value).is_some() {
+            return Err(format!("duplicate numeric source {path}"));
+        }
+    }
+    let mut actual = BTreeMap::new();
+    numbers(document, "", &mut actual);
+    for (path, value) in &actual {
+        if claims.get(path) != Some(value) {
+            return Err(format!(
+                "{path}: JSON number {value} absent or different in cited sidecar source"
+            ));
+        }
+    }
+    if actual.len() != claims.len() {
+        return Err("sidecar has stale numeric source paths".into());
+    }
+    Ok(())
+}
 #[test]
 fn models_are_canonical_and_have_provenance() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../targets");
@@ -10,10 +64,31 @@ fn models_are_canonical_and_have_provenance() {
     ] {
         let path = root.join(format!("{name}.json"));
         let s = std::fs::read_to_string(&path).expect("model must exist");
-        Target::load(&s).unwrap();
+        let target = Target::load(&s).unwrap();
         let p = std::fs::read_to_string(root.join(format!("{name}.provenance.md"))).unwrap();
         assert!(p.contains("illustrative"));
+        check_numeric_provenance(&target.document, &p)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
     }
+}
+
+#[test]
+fn numeric_provenance_detects_changed_missing_and_misassigned_numbers() {
+    let sidecar =
+        "ISA 0.9 §8\n| `/a` | `1` | illustrative count |\n| `/b/0` | `2` | illustrative duration |";
+    let original = serde_json::json!({"a":1,"b":[2]});
+    check_numeric_provenance(&original, sidecar).unwrap();
+    for document in [
+        serde_json::json!({"a":2,"b":[1]}),
+        serde_json::json!({"a":1,"b":[2,1]}),
+        serde_json::json!({"a":1}),
+    ] {
+        assert!(
+            check_numeric_provenance(&document, sidecar).is_err(),
+            "{document}"
+        );
+    }
+    assert!(check_numeric_provenance(&original, &sidecar.replace("0.9", "0.8")).is_err());
 }
 
 /// Exhaustive unitary check of a leaf list on 3 wires, against Toffoli.
@@ -93,7 +168,7 @@ fn grid_2d_ccx_scheme_is_toffoli_and_respects_adjacency() {
         for (i, a) in out.iter().enumerate() {
             let want = if i == expected { 1.0 } else { 0.0 };
             assert!(
-                (a.0 - want).abs() < 1e-9 && a.1.abs() < 1e-9,
+                (a.0 - want).abs() < 128.0 * f64::EPSILON && a.1.abs() < 128.0 * f64::EPSILON,
                 "basis {basis} amplitude {i}: {a:?}"
             );
         }

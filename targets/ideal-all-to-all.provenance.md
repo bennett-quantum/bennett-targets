@@ -3,7 +3,7 @@
 Every numeric value is **illustrative**, hand-derived for deterministic tests;
 these are vendor-neutral models, not claims about a commercial device.
 No datasheet accuracy, fidelity, QEC overhead or channel certificate is claimed.
-ISA 0.8 §8 defines all field semantics.
+ISA 0.9 §8 defines all field semantics.
 
 | JSON path / values | Provenance and derivation |
 | --- | --- |
@@ -28,3 +28,76 @@ inferred stochastic-error or code-distance model. No cost belongs to a scheme.
 
 Ideal simulator: all-to-all logical wires; unbounded controls and capacity.
 The unit second is an illustrative clock unit, not a measured duration.
+
+## Exact numeric source ledger
+
+These are the author-selected illustrative values, in JSON Pointer order.
+The source is the construction described above, under ISA 0.9 §8; no hardware
+measurement is implied. The validator tests parse this table and compare every
+numeric JSON leaf by path and exact rational value, including topology edges
+and scheme counts. Equal numbers at different paths remain distinct claims.
+
+| JSON pointer | Exact number | Source and derivation |
+| --- | --- | --- |
+| `/capabilities/classical_step_time` | `1` | Illustrative controller settings above (ISA 0.9 §8.3) |
+| `/capabilities/measurement/feedforward_latency` | `0` | Illustrative controller settings above (ISA 0.9 §8.3) |
+| `/classes/data/dirty_rate` | `1` | Illustrative capacity and occupancy/borrowing weights above (ISA 0.9 §8.3–8.4) |
+| `/classes/data/qubit_second` | `1` | Illustrative capacity and occupancy/borrowing weights above (ISA 0.9 §8.3–8.4) |
+| `/gates/0/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/0/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/0/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/0/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/1/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/1/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/1/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/1/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/2/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/2/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/2/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/2/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/3/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/3/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/3/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/3/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/4/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/4/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/4/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/4/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/5/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/5/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/5/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/5/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/6/controls/min` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/6/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/6/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/6/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/7/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/7/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/7/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/7/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/8/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/8/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/8/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/8/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/9/controls/min` | `2` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/9/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/9/cost/time` | `6` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/9/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/10/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/10/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/10/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/10/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/11/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/11/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/11/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/11/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/12/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/12/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/12/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/12/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/13/controls/min` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/13/cost/gate_count` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/13/cost/time` | `1` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/gates/13/epsilon` | `0` | Illustrative gate counts, timings and exact epsilon above (ISA 0.9 §8.1–8.3) |
+| `/ptr_widths_supported/0` | `32` | Illustrative host ABI widths (ISA 0.9 §8.3) |
+| `/ptr_widths_supported/1` | `64` | Illustrative host ABI widths (ISA 0.9 §8.3) |

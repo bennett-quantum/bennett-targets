@@ -1,0 +1,8 @@
+{
+  "source_url": "https://raw.githubusercontent.com/microsoft/qdk/e5d6dbeabc5b4fcb557269c7aa37a03c79ae4e85/source/resource_estimator/src/system/test_report.json",
+  "commit": "e5d6dbeabc5b4fcb557269c7aa37a03c79ae4e85",
+  "extraction": "/jobParams/qubitParams, wrapped in {qubitParams: ...}; every value unchanged",
+  "scope": "Hardware-parameter projection only; the full QEC/physical report is unsupported by this adapter and tested as a rejection.",
+  "retrieved_utc": "2026-11-06T06:36:54Z",
+  "sha256": "0ffe5e189b9d8ac097891c45c2f631f996668a51aa765ffc30f68450a0db90c2"
+}

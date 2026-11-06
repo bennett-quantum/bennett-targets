@@ -1,13 +1,14 @@
 //! ISA 0.9 §8 deltas: K9 EPS-DECADE and K14 topology, from the published text.
+use super::pins;
 use bennett_targets_validator::{
     expr::{self, Bindings},
     json, Target,
 };
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn cases() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bennett-isa-spec/conformance/cases/E")
+    pins::isa().join("conformance/cases/E")
 }
 fn grid_text() -> String {
     std::fs::read_to_string(cases().join("E-topology-grid-09/target.json")).unwrap()
@@ -222,7 +223,10 @@ fn adjacency_is_the_published_outcome() {
 fn every_operand_pair_needs_an_edge() {
     let t = Target::load(&grid_text()).unwrap();
     let err = t.check_placement(&[0, 1, 3]).unwrap_err();
-    assert!(err.contains("0") && err.contains("3"), "{err}");
+    assert!(
+        err.contains("operand vertices 0 and 3 are not adjacent"),
+        "{err}"
+    );
 }
 
 #[test]
@@ -295,8 +299,50 @@ fn scheme_leaves_are_checked_against_the_placement() {
 /// Explicit routing with §4.4 swap stays expressible: not a rejection.
 #[test]
 fn explicitly_routed_swaps_realise_a_non_adjacent_cx() {
-    let t = Target::load(&grid_text()).unwrap();
-    for pair in [[0, 1], [1, 3]] {
-        t.check_placement(&pair).unwrap();
+    let mut document = grid();
+    let mut swap = document["gates"][0].clone();
+    swap["op"] = json!("swap");
+    swap["controls"] = json!({"min":0,"max":0});
+    document["gates"].as_array_mut().unwrap().push(swap);
+    let target = load(&document).unwrap();
+    let mut route = Vec::new();
+    for (op, vertices, k) in [("swap", [0, 1], 0), ("cx", [1, 3], 1), ("swap", [0, 1], 0)] {
+        let leaves = target
+            .expand(
+                op,
+                &["fast", "fast"],
+                k,
+                k,
+                expr::decimal("0").unwrap(),
+                None,
+            )
+            .unwrap();
+        target.check_leaves(&leaves, &vertices).unwrap();
+        for leaf in leaves {
+            route.push((leaf, vertices));
+        }
+    }
+    assert_eq!(
+        route
+            .iter()
+            .map(|(leaf, _)| leaf.charge.cost["time"].clone())
+            .sum::<expr::Rational>(),
+        expr::decimal("3").unwrap()
+    );
+    for basis in 0..16 {
+        let input: Vec<_> = (0..4).map(|wire| basis & (1 << wire) != 0).collect();
+        let mut actual = input.clone();
+        for (leaf, placement) in &route {
+            let a = placement[leaf.wires[0]];
+            let b = placement[leaf.wires[1]];
+            match leaf.op.as_str() {
+                "swap" => actual.swap(a, b),
+                "cx" => actual[b] ^= actual[a],
+                op => panic!("unexpected route leaf {op}"),
+            }
+        }
+        let mut expected = input;
+        expected[3] ^= expected[0];
+        assert_eq!(actual, expected, "basis {basis}");
     }
 }

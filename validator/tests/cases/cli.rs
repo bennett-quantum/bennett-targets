@@ -1,11 +1,11 @@
+use super::pins;
 use std::{path::Path, process::Command};
 fn binary() -> &'static str {
     env!("CARGO_BIN_EXE_bennett-targets-validator")
 }
 #[test]
 fn cli_canonicalizes_all_seven_fixtures_and_rejects_bad_validation() {
-    let root =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bennett-isa-spec/conformance/cases/E");
+    let root = pins::isa().join("conformance/cases/E");
     let mut count = 0;
     for d in std::fs::read_dir(&root).unwrap() {
         let p = d.unwrap().path().join("target.json");
@@ -75,8 +75,7 @@ fn query(command: &str, target: &Path, body: &str, name: &str) -> std::process::
 
 #[test]
 fn cli_reports_the_published_topology_and_eps_decade_outcomes() {
-    let target = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../bennett-isa-spec/conformance/cases/E/E-topology-grid-09/target.json");
+    let target = pins::isa().join("conformance/cases/E/E-topology-grid-09/target.json");
     let ok = query("adjacency", &target, r#"{"vertices":[0,1]}"#, "adjacent");
     assert_eq!(ok.status.code(), Some(0));
     assert!(String::from_utf8_lossy(&ok.stdout).contains(r#""realisable":true"#));
@@ -107,4 +106,81 @@ fn cli_reports_the_published_topology_and_eps_decade_outcomes() {
     );
     assert_eq!(value.status.code(), Some(0));
     assert!(String::from_utf8_lossy(&value.stdout).contains("11/10"));
+}
+
+#[test]
+fn cli_queries_reject_malformed_fields_with_json_diagnostics() {
+    let target = pins::isa().join("conformance/cases/E/E-topology-grid-09/target.json");
+    for (command, body, error) in [
+        ("eval", "null", "query: expected object"),
+        ("eval", r#"{"expr":0}"#, "query: missing bindings"),
+        (
+            "eval",
+            r#"{"expr":0,"bindings":null}"#,
+            "query: bindings object",
+        ),
+        (
+            "eval",
+            r#"{"expr":0,"bindings":{"eps":0.1}}"#,
+            "query: binding values are decimal strings",
+        ),
+        ("adjacency", r#"{"vertices":0}"#, "query: vertices array"),
+    ] {
+        let out = query(command, &target, body, "invalid-query");
+        assert_eq!(out.status.code(), Some(1));
+        assert!(out.stdout.is_empty());
+        let diagnostic: serde_json::Value = serde_json::from_slice(&out.stderr).unwrap();
+        assert_eq!(diagnostic, serde_json::json!({"error":error}));
+    }
+    for args in [
+        vec![],
+        vec!["eval"],
+        vec!["eval", target.to_str().unwrap()],
+        vec!["import-azure", target.to_str().unwrap()],
+        vec!["unknown", target.to_str().unwrap()],
+    ] {
+        let out = Command::new(binary()).args(&args).output().unwrap();
+        assert_eq!(out.status.code(), Some(1), "{args:?}");
+        assert!(out.stdout.is_empty());
+        let diagnostic: serde_json::Value = serde_json::from_slice(&out.stderr).unwrap();
+        assert!(!diagnostic["error"].as_str().unwrap().is_empty());
+    }
+}
+
+#[test]
+fn cli_imports_real_samples_into_loadable_targets() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for (command, filename, resource, quantity) in [
+        (
+            "import-qualtran",
+            "qualtran-qft8-real.json",
+            "qualtran.and_bloq",
+            serde_json::json!(28),
+        ),
+        (
+            "import-azure",
+            "azure-estimator-qubit-params-real.json",
+            "azure.oneQubitGateErrorRate",
+            serde_json::json!(0.001),
+        ),
+    ] {
+        let output = Command::new(binary())
+            .arg(command)
+            .arg(root.join("targets/ideal-all-to-all.json"))
+            .arg(root.join("importers/fixtures").join(filename))
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(output.stderr.is_empty());
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let target =
+            bennett_targets_validator::Target::load(report["canonical"].as_str().unwrap()).unwrap();
+        assert_eq!(report["target_hash"], target.hash);
+        assert_eq!(report["quantities"][resource], quantity);
+    }
 }

@@ -42,6 +42,17 @@ fn own(op: &str, n: usize) -> Result<usize> {
         _ => 0,
     })
 }
+
+fn resource_total<'a>(
+    totals: &'a mut Resources,
+    resource: &str,
+    class: &str,
+) -> Result<&'a mut Rational> {
+    totals
+        .get_mut(resource)
+        .and_then(|values| values.get_mut(class))
+        .ok_or_else(|| format!("§8.2: resource {resource} has no aggregate dimension {class}"))
+}
 impl Target {
     pub fn expand(
         &self,
@@ -90,7 +101,10 @@ impl Target {
             let count = index(expr::eval(&s["ancillae"]["count"], &env, tables)?)?;
             let targets = targets(op);
             let target_start = c;
-            let anc_class = s["ancillae"]["class"].as_str().unwrap();
+            let anc_class = s["ancillae"]["class"]
+                .as_str()
+                .ok_or("§8.3: ancillae.class must be a string")?;
+            self.class(anc_class)?;
             let mut leaves = Vec::new();
             for g in array(&s["template"])? {
                 let (from, to) = if let Some(r) = g.get("repeat") {
@@ -118,9 +132,25 @@ impl Target {
                             "t2" if targets == 2 => target_start + 1,
                             "t2" => return Err("§8.3: t2 only for swap/cz".into()),
                             _ => {
-                                let e = json::parse(&w[2..w.len() - 1]).unwrap_or_else(
-                                    |_| serde_json::json!({"var":&w[2..w.len()-1]}),
-                                );
+                                let inner = w
+                                    .strip_prefix("c[")
+                                    .or_else(|| w.strip_prefix("a["))
+                                    .and_then(|s| s.strip_suffix(']'))
+                                    .ok_or(
+                                        "§8.3: template wire must be c[expr], t, t2 or a[expr]",
+                                    )?;
+                                // A bare context variable is the other published subscript form.
+                                let e = match json::parse(inner) {
+                                    Ok(value) => value,
+                                    Err(_) if ["k", "c", "i", "theta"].contains(&inner) => {
+                                        serde_json::json!({"var":inner})
+                                    }
+                                    Err(error) => {
+                                        return Err(format!(
+                                        "§8.3: invalid template wire subscript {inner:?}: {error}"
+                                    ))
+                                    }
+                                };
                                 let n = index(expr::eval(&e, &env, tables)?)?;
                                 if w.starts_with('c') {
                                     if n >= c {
@@ -147,7 +177,9 @@ impl Target {
                             anc_class
                         });
                     }
-                    let op = g["gate"].as_str().unwrap();
+                    let op = g["gate"]
+                        .as_str()
+                        .ok_or("§8.3: template gate must be a string")?;
                     let k = own(op, wires.len())?;
                     let charge=self.native_parameters(op,&cls,k,k,eps.clone(),g.get("params").is_some())?.ok_or("§8.3: Every template gate MUST itself match a gates entry (schemes do not nest)")?;
                     let params = g
@@ -251,7 +283,7 @@ impl Target {
                         .ok_or("§8.2: undeclared resource")?;
                     let n = expr::nonnegative(n)?;
                     if def["kind"] == "count" {
-                        *totals.get_mut(r).unwrap().get_mut("total").unwrap() += n;
+                        *resource_total(&mut totals, r, "total")? += n;
                     }
                 }
             }
@@ -352,7 +384,10 @@ impl Target {
             }
             if let Some(limits) = self.vertex_limits()? {
                 for (cls, n) in &counts {
-                    let limit = limits.get(*cls).copied().unwrap_or(0);
+                    let limit = limits
+                        .get(*cls)
+                        .copied()
+                        .ok_or_else(|| format!("§8.3: class {cls} has no declared vertex limit"))?;
                     if *n > limit {
                         return Err(format!(
                             "§8.3: {n} live wires of class {cls} exceed its {limit} vertices"
@@ -363,7 +398,7 @@ impl Target {
             for (r, def) in object(&self.document["resources"])? {
                 for (cls, n) in &counts {
                     if def["kind"] == "peak" {
-                        let peak = totals.get_mut(r).unwrap().get_mut(*cls).unwrap();
+                        let peak = resource_total(&mut totals, r, cls)?;
                         *peak = peak.clone().max(Rational::from_integer((*n).into()));
                     }
                     if def["kind"] == "occupancy" {
@@ -373,18 +408,14 @@ impl Target {
                             .map(expr::number)
                             .transpose()?
                             .unwrap_or_else(Rational::one);
-                        *totals.get_mut(r).unwrap().get_mut(*cls).unwrap() +=
-                            &rates[cls] * rate * &dt;
+                        *resource_total(&mut totals, r, cls)? += &rates[cls] * rate * &dt;
                     }
                 }
             }
         }
         for (r, def) in object(&self.document["resources"])? {
             if def["kind"] == "time" {
-                totals
-                    .get_mut(r)
-                    .unwrap()
-                    .insert("total".into(), makespan.clone());
+                *resource_total(&mut totals, r, "total")? = makespan.clone();
             }
         }
         Ok(totals)

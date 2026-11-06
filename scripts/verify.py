@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent CLI-only consumer checks. Exit 2 means known blocked acceptance."""
+"""CLI-only pinned consumer checks; exit 0 is repo success, with acceptance reported separately."""
 import copy
 import hashlib
 import json
@@ -8,19 +8,22 @@ from pathlib import Path
 import subprocess
 import sys
 from fractions import Fraction
+from gate_pin import pinned_sibling
+from consumer_report import stable_report
 
 ROOT = Path(__file__).resolve().parents[1]
-VM_TOPOLOGY_BEAD = 'b-targets-dt2'
+VM_TOPOLOGY_BLOCKER = 'vm-topology'
 WORK = ROOT / '.tmp' / 'verify'
 WORK.mkdir(parents=True, exist_ok=True)
 for key in ('DISPLAY', 'WAYLAND_DISPLAY', 'DBUS_SESSION_BUS_ADDRESS', 'BROWSER'):
     os.environ.pop(key, None)
-os.environ['TMPDIR'] = str(ROOT / '.tmp')
+os.environ.setdefault('TMPDIR', str(WORK))
 VALIDATOR = Path(os.environ.get('CARGO_TARGET_DIR', ROOT / 'validator/target')) / 'debug/bennett-targets-validator'
-VM = ROOT.parent / 'bennett-vm/target/debug/bennett-vm'
-REF = ROOT.parent / 'bennett-isa-spec/reference-interpreter/target/debug/bennett-isa-ref'
-FIXTURES = Path(os.environ.get('BENNETT_TARGETS_E_CASES', ROOT.parent / 'bennett-isa-spec/conformance/cases/E'))
-OBJECT = ROOT.parent / 'bennett-isa-spec/conformance/cases/objects/registers.bisa'
+ISA = pinned_sibling(ROOT, 'bennett-isa-spec')
+VM = pinned_sibling(ROOT, 'bennett-vm') / 'target/debug/bennett-vm'
+REF = ISA / 'reference-interpreter/target/debug/bennett-isa-ref'
+FIXTURES = Path(os.environ.get('BENNETT_TARGETS_E_CASES', ISA / 'conformance/cases/E'))
+OBJECT = ISA / 'conformance/cases/objects/registers.bisa'
 REPORT = {'spec': 'ISA 0.9 §8 (target 0.9)', 'consumer_gaps': [], 'fixture_bytes': 0, 'fixture_hashes': 0, 'vm_agreements': [], 'vm_divergences': [], 'rejection_diagnostics': [], 'reference_unavailable': [], 'model_runs': [], 'importer_runs': [], 'published_unavailable': [], 'partial_checks': []}
 
 # These seventeen scenarios remain executable in the validator's Rust suite-E test.
@@ -46,7 +49,7 @@ def classify_published(case):
     require('b-isa-spec-' in reason or 'b-targets-' in reason,
             name + ': published unavailable.reason must name a bead')
     REPORT['published_unavailable'].append({'id': name, 'reason': reason})
-    print('UNAVAILABLE ' + name + ': ' + reason, flush=True)
+    print('UNAVAILABLE ' + name + ': ' + stable_report(reason), flush=True)
     return False
 
 def run(binary, *args):
@@ -108,7 +111,7 @@ def vm_topology_gap(path, entry='allocation'):
     if other.returncode == 0:
         return other
     require('unknown field topology' in other.stderr, path.name + ': unexpected VM error: ' + other.stderr)
-    REPORT['consumer_gaps'].append({'consumer': 'bennett-vm', 'target': path.name, 'bead': VM_TOPOLOGY_BEAD, 'error': other.stderr.strip()})
+    REPORT['consumer_gaps'].append({'consumer': 'bennett-vm', 'target': path.name, 'blocker': VM_TOPOLOGY_BLOCKER, 'error': other.stderr.strip()})
     return None
 
 def check_topology(path, case):
@@ -162,7 +165,7 @@ for path in sorted(FIXTURES.glob('*/target.json')):
     require(other.returncode == 1 and not other.stdout and 'staged deliverable 9' in other.stderr and ('§8' in other.stderr or '§6.4' in other.stderr), other.stderr)
     REPORT['reference_unavailable'].append(path.parent.name)
 # §8.1 EPS-DECADE witness, parsed from the published text rather than copied.
-spec09 = (ROOT.parent / 'bennett-isa-spec/spec/Bennett-ISA-Spec-0.9.md').read_text()
+spec09 = (ISA / 'spec/Bennett-ISA-Spec-0.9.md').read_text()
 fence = spec09.index('```json', spec09.index('**EPS-DECADE witness**')) + len('```json')
 witness = json.loads(spec09[fence:spec09.index('```', fence)])
 require(len(witness) == 6, 'EPS-DECADE witness changed')
@@ -278,7 +281,7 @@ for label, binary in (('vm', VM), ('reference', REF)):
         'error': (checked.stderr if ran is None else ran.stderr).strip()[:400]})
 
 # §11.1: recompute the published library hash, then the gates the inc8 rows need.
-library_bytes = (ROOT.parent / 'bennett-isa-spec/spec/ref-0.9.json').read_bytes()
+library_bytes = (ISA / 'spec/ref-0.9.json').read_bytes()
 library_hash = hashlib.sha256(b'isa=0.9\nexpansion=ref\nversion=0.9\n' + library_bytes + b'\n').hexdigest()
 require(library_hash in spec09, 'ref-0.9.json envelope hash is not the one bound in §11.1: ' + library_hash)
 REPORT['ref_library_hash'] = library_hash
@@ -316,7 +319,7 @@ for path in sorted((ROOT / 'targets').glob('*.json')):
 REPORT['spec_example_target_runs'] = []
 for path in sorted((ROOT / 'targets').glob('*.json')):
     result = run(VM, 'run-program', launch, 'launch', '--arg', 'token:3,0,0,0', '--target', path)
-    # Refusal is recorded, never a pass; only a COMPLETED run could close b-targets-7dv.
+    # Refusal is recorded; only a COMPLETED run satisfies target-backed inc8.
     completed = result.returncode == 0 and json.loads(result.stdout).get('status') == 'COMPLETED'
     REPORT['spec_example_target_runs'].append({'target': path.name,
         'state': 'COMPLETED' if completed else 'BLOCKED',
@@ -325,7 +328,7 @@ inc8_blocked = [r for r in REPORT['spec_example_target_runs'] if r['state'] != '
 
 # Exact timing/occupancy expectations derived from seven controller instructions,
 # two X leaves and two live wires over five controller steps plus both leaves.
-expected_times = {'ideal-all-to-all.json':('9','14'), 'superconducting-grid-illustrative.json':('0.00011','0.00018'), 'trapped-ion-illustrative.json':('0.000027','0.00005')}
+expected_times = {'ideal-all-to-all.json':('9','14'), 'superconducting-grid-illustrative.json':('0.00011','0.00018'), 'superconducting-grid-2d-illustrative.json':('0.00011','0.00018'), 'trapped-ion-illustrative.json':('0.000027','0.00005')}
 for model in REPORT['model_runs']:
     time, occupancy = expected_times[model['name']]
     require(Fraction(model['resources']['time']) == Fraction(time), model['name'] + ': makespan')
@@ -334,17 +337,18 @@ for model in REPORT['model_runs']:
 REPORT['reference_semantic_agreements'] = 0
 REPORT['circuits_target_cli'] = 'unavailable: documented CLI exposes no target input'
 REPORT['acceptance_blockers'] = [
-    {'id': 'b-targets-38r', 'reason': 'Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements (b-isa-spec-xg3). Circuits also documents no target CLI.'},
+    {'id': 'reference-target-cli', 'reason': 'Reference CLI surface: every target attempt is refused as staged deliverable 9; zero semantic target agreements. Circuits also documents no target CLI.'},
 ]
 if inc8_blocked:
-    REPORT['acceptance_blockers'].append({'id': 'b-targets-7dv', 'reason': 'Target-backed normative inc8 does not complete: ' + inc8_blocked[0]['reason']})
+    REPORT['acceptance_blockers'].append({'id': 'target-backed-inc8', 'reason': 'Target-backed normative inc8 does not complete: ' + inc8_blocked[0]['reason']})
 if REPORT['consumer_gaps']:
-    REPORT['acceptance_blockers'].append({'id': VM_TOPOLOGY_BEAD, 'reason': 'Validator implements §8.3 topology; the VM refuses it, so no consumer agrees yet: ' + REPORT['consumer_gaps'][0]['error']})
+    REPORT['acceptance_blockers'].append({'id': VM_TOPOLOGY_BLOCKER, 'reason': 'Validator implements §8.3 topology; the VM refuses it, so no consumer agrees yet: ' + REPORT['consumer_gaps'][0]['error']})
 REPORT['acceptance'] = 'BLOCKED: ' + ', '.join(b['id'] for b in REPORT['acceptance_blockers'])
 require(len(REPORT['vm_agreements']) == 33, 'VM agreement baseline changed; deliberate rebaseline required')
 require(REPORT['fixture_bytes'] == REPORT['fixture_hashes'] == 7,
         'canonical fixture baseline changed; deliberate rebaseline required')
 REPORT['binary_sha256'] = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (VM, REF)}
+REPORT = stable_report(REPORT)
 (ROOT / 'docs/verification.json').write_text(json.dumps(REPORT, indent=2) + '\n')
 print(json.dumps({k:v for k,v in REPORT.items() if k != 'rejection_diagnostics'}, indent=2))
 # Repo gate (advisor ruling, 2026-11-02): exit 0 means this repo's own checks passed; a failed check

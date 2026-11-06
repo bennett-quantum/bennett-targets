@@ -3,7 +3,7 @@ use bennett_targets_validator::{expr, importers, json, Target};
 use serde_json::{json, Value};
 
 fn base() -> Value {
-    json::parse(include_str!("../../targets/ideal-all-to-all.json")).unwrap()
+    json::parse(include_str!("../../../targets/ideal-all-to-all.json")).unwrap()
 }
 fn load(d: &Value) -> Result<Target, String> {
     Target::load(&json::canonical(d).unwrap())
@@ -19,7 +19,7 @@ fn azure(rate: &str, gate_time: &str) -> Result<Value, String> {
     importers::azure(&load(&base()).unwrap(), &input)
 }
 
-/// b-targets-c5w: §8.1 numbers are exact rationals from their decimal text, so an
+/// §8.1 numbers are exact rationals from their decimal text, so an
 /// import either keeps the source value exactly or fails loudly; never rounds.
 #[test]
 fn imported_rates_are_preserved_exactly_or_rejected() {
@@ -44,7 +44,7 @@ fn imported_rates_are_preserved_exactly_or_rejected() {
     }
 }
 
-/// b-targets-9oc: §8.3 "Each live wire occupies one vertex of its resolved class";
+/// §8.3 "Each live wire occupies one vertex of its resolved class";
 /// §11 binds placements, so a fast-class leaf on a slow vertex rejects.
 #[test]
 fn placement_must_match_the_resolved_operand_class() {
@@ -121,9 +121,9 @@ fn with_model(op: &str, model: Value) -> Result<Target, String> {
     load(&d)
 }
 
-/// b-targets-z7b: §8.3 K86 "Closed-schema target readers MUST be upgraded for
+/// §8.3 K86 "Closed-schema target readers MUST be upgraded for
 /// realisation_model". The accepted field set is {version,kind,arity,basis,
-/// parameter_bindings,control_models,data}; operand_map (b-isa-spec-wk0k, open)
+/// parameter_bindings,control_models,data}; operand_map
 /// is tolerated only as a verified operand permutation.
 #[test]
 fn published_native_realisation_model_loads_and_is_verified() {
@@ -196,7 +196,7 @@ fn published_native_realisation_model_loads_and_is_verified() {
     }
 }
 
-/// b-targets-9vu: §8.1 decimal text; "1.2.3" is not a number.
+/// §8.1 decimal text; "1.2.3" is not a number.
 #[test]
 fn malformed_decimal_text_rejects() {
     for bad in [
@@ -222,7 +222,7 @@ fn malformed_decimal_text_rejects() {
     assert!(err.contains("§8.1"), "{err}");
 }
 
-/// b-targets-4z8: §4.4 forms fix every opcode's operand arity (x a; cx c t; ...).
+/// §4.4 forms fix every opcode's operand arity (x a; cx c t; ...).
 #[test]
 fn native_operand_arity_is_checked() {
     let t = load(&base()).unwrap();

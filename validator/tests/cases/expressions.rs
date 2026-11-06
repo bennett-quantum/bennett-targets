@@ -1,3 +1,4 @@
+use super::pins;
 use bennett_targets_validator::{
     expr::{self, Bindings},
     json,
@@ -41,9 +42,12 @@ fn exact_arithmetic_contexts_and_failures() {
 }
 #[test]
 fn constant_subexpressions_are_checked_at_load() {
-    let mut v = json::parse(include_str!(
-        "../../../bennett-isa-spec/conformance/cases/E/E-jcs-target-hash/target.json"
-    ))
+    let mut v = json::parse(
+        &std::fs::read_to_string(
+            pins::isa().join("conformance/cases/E/E-jcs-target-hash/target.json"),
+        )
+        .unwrap(),
+    )
     .unwrap();
     v["gates"][0]["cost"]["time"] = json!({"op":"+","args":[{"var":"k"},{"op":"/","args":[1,0]}]});
     assert!(bennett_targets_validator::Target::load(&json::canonical(&v).unwrap()).is_err());

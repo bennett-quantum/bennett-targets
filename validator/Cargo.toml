@@ -2,7 +2,7 @@
 name = "bennett-targets-validator"
 version = "0.1.0"
 edition = "2021"
-description = "Validator for Bennett ISA-spec target descriptions (ISA 0.8)"
+description = "Validator for Bennett ISA-spec target descriptions (ISA 0.9)"
 license-file = "../LICENSE"
 
 [dependencies]
@@ -12,3 +12,6 @@ num-rational = "0.4"
 num-traits = "0.2"
 sha2 = "0.10"
 ryu-js = "1"
+
+[profile.test]
+debug = "line-tables-only"

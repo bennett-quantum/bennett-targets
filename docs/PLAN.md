@@ -3,8 +3,8 @@
 The remit is the complete ISA target contract: independent validation and canonical
 JCS identities; vendor-contributed, per-hardware descriptions with provenance;
 and Qualtran/Azure resource-model ingestion with loss-explicit field mappings.
-Only published ISA 0.8 is a cross-repository dependency. No consumer code is read
-or copied. The brief supersedes the skeleton 0.3 pin.
+Published ISA 0.9 is the cross-repository contract, selected by SPEC_VERSIONS.toml
+and the immutable gate.toml sibling pins. No consumer code is read or copied.
 
 ## Milestones
 
@@ -34,13 +34,20 @@ made-up probe domain. Schema validation does not assert scheme correctness.
 Use consumer CLIs exclusively, fail on unclassified differences, distinguish
 reference staged refusals from agreement, and exercise VM native execution and
 accounting with generated canonical objects. Circuit placement is conditional on
-its CLI exposing target input. A 2D hardware topology is not encoded by inventing
-an ISA field: file the absent schema and retain the physical grid in provenance.
+its CLI exposing target input. ISA 0.9 §8.3 now publishes the topology schema:
+the complete 2D grid is validated here, while consumer agreement remains blocked
+at the pinned VM revision. The all-to-all projection remains explicitly labeled.
 
 ## Dependencies
 
-The skeleton is std-only. Correct unrestricted decimal rational arithmetic and
+Correct unrestricted decimal rational arithmetic and
 RFC 8785 ECMAScript shortest-number formatting justify num-bigint, num-rational,
 num-traits and ryu-js. sha2 supplies audited SHA-256 rather than handwritten crypto.
 JSON parsing, duplicate detection, schema, evaluation, importers and harness are
 independent implementations here; no ISA or VM code is shared.
+
+Round-1 quality work and measurements are in [quality.md](quality.md). Real
+Qualtran count output and a Microsoft estimator report are retained alongside
+explicit provenance; importing the Azure hardware projection does not imply
+support for the report's QEC or physical-estimate hierarchy. The remaining
+complete-model scope above is unchanged.

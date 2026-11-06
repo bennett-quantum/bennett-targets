@@ -1,8 +1,8 @@
 //! ISA 0.9 §8.3 K86 native realisation models (`bennett.native-model/1`).
 //!
 //! Field set: the accepted K86 text {version,kind,arity,basis,parameter_bindings,
-//! control_models,data}. The applied 0.9 text adds operand_map (b-isa-spec-wk0k,
-//! open); it is tolerated here only as a verified operand permutation.
+//! control_models,data}. The applied 0.9 text adds operand_map; it is accepted
+//! here only as a verified operand permutation.
 use crate::{
     json::Result,
     target::{arr, covers, fields, obj, targets, text},
@@ -15,7 +15,7 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 
 pub const VERSION: &str = "bennett.native-model/1";
-const UNPUBLISHED: &str = "0.9 publishes no encoding for it (b-targets-1wr)";
+const UNPUBLISHED: &str = "0.9 publishes no encoding for it";
 
 /// Gaussian rational a + b i: the exactly decidable fragment of model entries.
 type Complex = (BigRational, BigRational);
@@ -295,5 +295,66 @@ fn own(op: &str) -> usize {
         "cx" => 1,
         "ccx" => 2,
         _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn exact_native_matrices_act_on_each_basis_column() {
+        let integer = |n: i64| BigRational::from_integer(n.into());
+        // Independent §4.4 basis permutations and phases, including imaginary S.
+        for (op, permutation, phases) in [
+            ("x", vec![1, 0], vec![(1, 0); 2]),
+            ("s", vec![0, 1], vec![(1, 0), (0, 1)]),
+            ("sdg", vec![0, 1], vec![(1, 0), (0, -1)]),
+            (
+                "cz",
+                vec![0, 1, 2, 3],
+                vec![(1, 0), (1, 0), (1, 0), (-1, 0)],
+            ),
+            ("swap", vec![0, 2, 1, 3], vec![(1, 0); 4]),
+        ] {
+            let matrix = ideal(op).unwrap();
+            for (column, row) in permutation.iter().enumerate() {
+                for (r, entries) in matrix.iter().enumerate() {
+                    let (re, im) = if r == *row { phases[column] } else { (0, 0) };
+                    assert_eq!(
+                        entries[column],
+                        (integer(re), integer(im)),
+                        "{op}[{r},{column}]"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_model_expression_arithmetic_is_exact_complex_arithmetic() {
+        let vars = BTreeSet::new();
+        let i = json!({"op":"i","args":[]});
+        let one = json!(["1", "1"]);
+        for (op, a, b, expected) in [
+            ("+", i.clone(), one.clone(), (1, 1)),
+            ("-", one.clone(), i.clone(), (1, -1)),
+            ("*", i.clone(), i.clone(), (-1, 0)),
+            ("/", one.clone(), i.clone(), (0, -1)),
+        ] {
+            let value = expression(&json!({"op":op,"args":[a,b]}), &vars)
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                value,
+                (
+                    BigRational::from_integer(expected.0.into()),
+                    BigRational::from_integer(expected.1.into())
+                )
+            );
+        }
+        let error = expression(&json!({"op":"/","args":[one,["0","1"]]}), &vars).unwrap_err();
+        assert!(error.contains("division by zero"), "{error}");
     }
 }

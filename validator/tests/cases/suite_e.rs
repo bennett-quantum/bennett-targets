@@ -1,4 +1,5 @@
 //! Execute the published scenario data; staged reference outcomes are not passes.
+use super::pins;
 use bennett_targets_validator::{
     expr::{self, Bindings},
     json, Target,
@@ -19,9 +20,7 @@ fn rational(v: &Value) -> expr::Rational {
 fn all_seventeen_published_e_scenarios() {
     let root = std::env::var_os("BENNETT_TARGETS_E_CASES")
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../bennett-isa-spec/conformance/cases/E")
-        });
+        .unwrap_or_else(|| pins::isa().join("conformance/cases/E"));
     check_scenarios(&root);
 }
 
@@ -165,9 +164,21 @@ fn check_scenarios(root: &Path) {
                 assert_ne!(value, ref_value);
             }
             "E-imports" => {
+                let mut document = read(root.join("E-jcs-target-hash/target.json"));
+                let resource = s["mapping"][0].as_str().unwrap();
+                document["resources"][resource] = json!({"kind":"count","unit":"imported"});
+                document["imports"]["published"] =
+                    json!({"version":"witness","map":{"quantity":s["mapping"]}});
+                let target = Target::load(&json::canonical(&document).unwrap()).unwrap();
+                let converted = target
+                    .import_quantities(
+                        "published",
+                        &Bindings::from([("quantity".into(), rational(&s["quantity"]))]),
+                    )
+                    .unwrap();
                 assert_eq!(
-                    rational(&s["quantity"]) * rational(&s["mapping"][1]),
-                    rational(&expected["resources"][s["mapping"][0].as_str().unwrap()])
+                    converted[resource],
+                    rational(&expected["resources"][resource])
                 );
             }
             "E-aggregation" | "E-timing-overlap" => {
@@ -249,10 +260,7 @@ fn copy_cases(source: &Path, destination: &Path) {
 fn unknown_published_cases_require_a_reason_and_bead() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let scratch = root.join(format!("../.tmp/suite-e-corrupt-{}", std::process::id()));
-    copy_cases(
-        &root.join("../../bennett-isa-spec/conformance/cases/E"),
-        &scratch,
-    );
+    copy_cases(&pins::isa().join("conformance/cases/E"), &scratch);
     let id = "E-ref-09-qxor-witness";
     let path = scratch.join(id).join("case.json");
     let original = read(&path);

@@ -1,0 +1,7 @@
+{
+  "source_url": "https://raw.githubusercontent.com/microsoft/qdk/e5d6dbeabc5b4fcb557269c7aa37a03c79ae4e85/source/resource_estimator/src/system/test_report.json",
+  "commit": "e5d6dbeabc5b4fcb557269c7aa37a03c79ae4e85",
+  "scope": "Unmodified upstream resource-estimator test_report.json output artifact; not a cloud submission or measured hardware.",
+  "retrieved_utc": "2026-11-06T06:36:54Z",
+  "sha256": "52ef97bca37dc9739b82683a2c17214dc8aecf5bdab6c74f5c8f6df9d7263f2a"
+}

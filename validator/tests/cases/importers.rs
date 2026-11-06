@@ -1,9 +1,13 @@
+use super::pins;
 use bennett_targets_validator::{importers, Target};
 use serde_json::json;
 fn base() -> Target {
-    Target::load(include_str!(
-        "../../../bennett-isa-spec/conformance/cases/E/E-jcs-target-hash/target.json"
-    ))
+    Target::load(
+        &std::fs::read_to_string(
+            pins::isa().join("conformance/cases/E/E-jcs-target-hash/target.json"),
+        )
+        .unwrap(),
+    )
     .unwrap()
 }
 #[test]
@@ -18,6 +22,13 @@ fn qualtran_all_fields_and_unknowns() {
         json!(["qualtran.cswap", 1])
     );
     assert_eq!(report["quantities"]["qualtran.and_bloq"], json!(4));
+    for field in input.as_object().unwrap().keys() {
+        assert_eq!(report["mapping"][field]["defaulted"], false, "{field}");
+        assert_eq!(
+            report["quantities"][format!("qualtran.{field}")],
+            input[field]
+        );
+    }
     for bad in [
         json!({"unknown":1}),
         json!({"t":"n+1"}),
@@ -82,16 +93,17 @@ fn importer_rejects_unit_mismatch_and_preserves_huge_counts() {
     let target =
         Target::load(&bennett_targets_validator::json::canonical(&target).unwrap()).unwrap();
     let source = bennett_targets_validator::json::parse(include_str!(
-        "../../importers/fixtures/azure-qubit-params.json"
+        "../../../importers/fixtures/azure-qubit-params.json"
     ))
     .unwrap();
-    assert!(importers::azure(&target, &source)
-        .unwrap_err()
-        .contains("unit"));
+    assert_eq!(
+        importers::azure(&target, &source).unwrap_err(),
+        "import: base time unit must be second or s"
+    );
 }
 
 fn ideal() -> Target {
-    Target::load(include_str!("../../targets/ideal-all-to-all.json")).unwrap()
+    Target::load(include_str!("../../../targets/ideal-all-to-all.json")).unwrap()
 }
 
 /// North Star §7: not-aligned quantities import as new named resources. A
@@ -184,11 +196,149 @@ fn azure_majorana_quantities_import_without_inventing_gates() {
 }
 
 #[test]
-fn azure_qec_formula_inputs_name_the_blocker() {
+fn azure_qec_formula_inputs_name_the_missing_contract() {
     let input = json!({"qubitParams":{"name":"p","instructionSet":"GateBased","oneQubitMeasurementTime":"1 us","oneQubitGateTime":"20 ns","oneQubitMeasurementErrorRate":0,"oneQubitGateErrorRate":0},"qecScheme":{"name":"surface_code"}});
     let err = importers::azure(&base(), &input).unwrap_err();
     assert!(
-        err.contains("qecScheme") && err.contains("b-isa-spec-fd0"),
+        err.contains("qecScheme") && err.contains("ISA §8.3") && err.contains("QEC"),
         "{err}"
     );
+}
+
+#[test]
+fn real_qualtran_qft_dump_preserves_counts_and_marks_each_zero_default() {
+    use bennett_targets_validator::{expr, json};
+    let source = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../importers/fixtures/qualtran-qft8-real.json"
+    ))
+    .unwrap();
+    let input = json::parse(&source).unwrap();
+    // Produced by Qualtran 0.7.0 QFTTextBook(8), not hand-entered GateCounts.
+    assert_eq!(
+        input,
+        json!({"t":6,"and_bloq":28,"clifford":47,"rotation":15,"measurement":28})
+    );
+    let report = importers::qualtran(&ideal(), &input).unwrap();
+    let target = Target::load(report["canonical"].as_str().unwrap()).unwrap();
+    for (field, expected) in [
+        ("t", 6),
+        ("toffoli", 0),
+        ("cswap", 0),
+        ("and_bloq", 28),
+        ("clifford", 47),
+        ("rotation", 15),
+        ("measurement", 28),
+    ] {
+        assert_eq!(
+            report["mapping"][field]["defaulted"],
+            input.get(field).is_none(),
+            "{field}"
+        );
+        assert_eq!(
+            report["quantities"][format!("qualtran.{field}")],
+            expected,
+            "{field}"
+        );
+        assert_eq!(
+            target.document["imports"]["qualtran.GateCounts"]["map"][field],
+            json!([format!("qualtran.{field}"), 1])
+        );
+    }
+    let quantities = input
+        .as_object()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (k.clone(), expr::number(v).unwrap()))
+        .collect();
+    let converted = target
+        .import_quantities("qualtran.GateCounts", &quantities)
+        .unwrap();
+    assert_eq!(converted["qualtran.rotation"], expr::decimal("15").unwrap());
+}
+
+#[test]
+fn real_azure_estimator_report_has_an_explicit_hardware_projection() {
+    use bennett_targets_validator::{expr, json};
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../importers/fixtures");
+    let read = |name| json::parse(&std::fs::read_to_string(fixtures.join(name)).unwrap()).unwrap();
+    let full = read("azure-estimator-report-real.json");
+    let input = read("azure-estimator-qubit-params-real.json");
+    assert_eq!(input["qubitParams"], full["jobParams"]["qubitParams"]);
+    let error = importers::azure(&ideal(), &full).unwrap_err();
+    assert!(
+        error.contains("errorBudget") && error.contains("unsupported field"),
+        "{error}"
+    );
+    let before = ideal();
+    let report = importers::azure(&before, &input).unwrap();
+    let target = Target::load(report["canonical"].as_str().unwrap()).unwrap();
+    assert_eq!(report["source"]["name"], "qubit_gate_ns_e3");
+    for (op, classes, k) in [
+        ("x", vec!["data"], 0),
+        ("cx", vec!["data", "data"], 1),
+        ("t", vec!["data"], 0),
+    ] {
+        let charge = target
+            .native(op, &classes, k, k, expr::decimal("0").unwrap())
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            charge.cost["time"],
+            expr::decimal("0.00000005").unwrap(),
+            "{op}"
+        );
+        assert_eq!(charge.epsilon, expr::decimal("0").unwrap());
+    }
+    for field in input["qubitParams"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .filter(|key| !["name", "instructionSet"].contains(&key.as_str()))
+    {
+        assert_eq!(report["mapping"][field]["defaulted"], false, "{field}");
+    }
+    assert_eq!(
+        expr::number(&report["quantities"]["azure.oneQubitMeasurementTime.seconds"]).unwrap(),
+        expr::decimal("0.0000001").unwrap()
+    );
+    assert_eq!(
+        report["quantities"]["azure.oneQubitGateErrorRate"],
+        json!(0.001)
+    );
+    for (new, old) in target.document["gates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(before.document["gates"].as_array().unwrap())
+    {
+        assert_eq!(new["epsilon"], old["epsilon"]);
+    }
+}
+
+#[test]
+fn real_sample_sources_have_dates_urls_and_byte_hashes() {
+    use bennett_targets_validator::json;
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../importers/fixtures");
+    for name in [
+        "qualtran-qft8-real",
+        "azure-estimator-report-real",
+        "azure-estimator-qubit-params-real",
+    ] {
+        let metadata = json::parse(
+            &std::fs::read_to_string(root.join(format!("{name}.provenance.json"))).unwrap(),
+        )
+        .unwrap();
+        assert!(metadata["source_url"]
+            .as_str()
+            .unwrap()
+            .starts_with("https://"));
+        let date = metadata["retrieved_utc"].as_str().unwrap();
+        assert_eq!(date.len(), 20);
+        assert!(date.ends_with('Z'));
+        assert_eq!(
+            metadata["sha256"],
+            json::hash(&std::fs::read(root.join(format!("{name}.json"))).unwrap())
+        );
+    }
 }

@@ -45,7 +45,7 @@ fn finish(d: Value, mapping: Value, quantities: Value, source: Value) -> Result<
 fn reject_unknown(input: &Value, allowed: &[&str], prefix: &str) -> Result<()> {
     for key in object(input)?.keys() {
         if !allowed.contains(&key.as_str()) {
-            return Err(format!("import: {prefix}{key}: explicitly unsupported field; no silent dropping (ISA §8.3 imports; QEC, hierarchy and symbolic models: b-targets-gyp, proposed text b-isa-spec-fd0)"));
+            return Err(format!("import: {prefix}{key}: explicitly unsupported field; no silent dropping (ISA §8.3 imports does not define QEC, hierarchy or symbolic-model mappings)"));
         }
     }
     Ok(())
