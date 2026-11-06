@@ -266,3 +266,112 @@ fn native_operand_arity_is_checked() {
         .unwrap_err();
     assert!(err.contains("§4.4"), "{err}");
 }
+
+#[test]
+fn zero_epsilon_expressions_reject_contradictory_native_models_at_load() {
+    for epsilon in [
+        json!({"var":"k"}),
+        json!({"op":"-","args":[{"var":"k"},{"var":"k"}]}),
+        json!({"table":"accuracy","index":"k"}),
+    ] {
+        let mut d = base();
+        d["tables"]["accuracy"] = json!([0]);
+        d["gates"][0]["epsilon"] = epsilon.clone();
+        d["gates"][0]["realisation_model"] = x_model();
+        let t = load(&d).unwrap();
+        assert_eq!(
+            t.native("x", &["data"], 0, 0, zero())
+                .unwrap()
+                .unwrap()
+                .epsilon,
+            zero()
+        );
+        d["gates"][0]["realisation_model"]["data"]["matrix"][0][1][0][0] = json!("-1");
+        d["gates"][0]["realisation_model"]["data"]["matrix"][1][0][0][0] = json!("-1");
+        let error = load(&d).unwrap_err();
+        assert!(
+            error.contains("contradicts") && error.contains("zero-epsilon"),
+            "{epsilon}: {error}"
+        );
+    }
+}
+
+#[test]
+fn native_models_are_checked_at_each_resolved_epsilon_and_binding() {
+    for off_diagonal in [
+        json!(["-1", "1"]),
+        json!({"op":"-","args":[{"var":"own_controls"},["1","1"]]}),
+    ] {
+        let mut d = base();
+        let mut model = x_model();
+        model["parameter_bindings"] = json!({"own_controls":"k"});
+        model["data"]["matrix"][0][1][0] = off_diagonal.clone();
+        model["data"]["matrix"][1][0][0] = off_diagonal;
+        d["gates"][0]["realisation_model"] = model;
+        d["gates"][0]["epsilon"] = json!({"op":"*","args":[2,{"var":"c"}]});
+        let t = load(&d).unwrap();
+        let error = t.native("x", &["data"], 0, 0, zero()).unwrap_err();
+        assert!(error.contains("contradicts"), "{error}");
+        let error = t.expand("x", &["data"], 0, 0, zero(), None).unwrap_err();
+        assert!(error.contains("contradicts"), "{error}");
+        // Controlled X and controlled -X have operator distance 2. This is a
+        // legal positive-epsilon context, even though c=0 must reject.
+        let charge = t
+            .native("x", &["data"; 2], 0, 1, expr::decimal("2").unwrap())
+            .unwrap()
+            .unwrap();
+        assert_eq!(charge.epsilon, expr::decimal("2").unwrap());
+    }
+}
+
+#[test]
+fn exact_resolved_model_context_does_not_bind_eps() {
+    let mut d = base();
+    let mut model = x_model();
+    model["parameter_bindings"]["requested_accuracy"] = json!("eps");
+    d["gates"][0]["realisation_model"] = model;
+    d["gates"][0]["epsilon"] = json!({"var":"c"});
+    let t = load(&d).unwrap();
+    let error = t
+        .native("x", &["data"], 0, 0, expr::decimal("1").unwrap())
+        .unwrap_err();
+    assert!(
+        error.contains("eps is bound only where evaluated epsilon is positive"),
+        "{error}"
+    );
+    assert_eq!(
+        t.native("x", &["data"; 2], 0, 1, expr::decimal("1").unwrap())
+            .unwrap()
+            .unwrap()
+            .epsilon,
+        expr::decimal("1").unwrap()
+    );
+}
+
+#[test]
+fn zero_epsilon_control_expressions_check_models_at_resolution() {
+    for (op, k, c) in [("x", 0, 0), ("cx", 1, 1), ("ccx", 2, 2), ("mcx", 2, 2)] {
+        let mut d = base();
+        let i = gate(&d, op);
+        d["gates"][i]["epsilon"] = json!({"op":"-","args":[{"var":"c"},{"var":"c"}]});
+        d["gates"][i]["realisation_model"] = x_model();
+        let t = load(&d).unwrap();
+        let classes = vec!["data"; c + 1];
+        assert_eq!(
+            t.native(op, &classes, k, c, zero())
+                .unwrap()
+                .unwrap()
+                .epsilon,
+            zero()
+        );
+        // The document can be mutated by library callers after schema loading.
+        let mut t = t;
+        t.document["gates"][i]["realisation_model"]["data"]["matrix"][0][1][0][0] = json!("-1");
+        t.document["gates"][i]["realisation_model"]["data"]["matrix"][1][0][0][0] = json!("-1");
+        let error = t.native(op, &classes, k, c, zero()).unwrap_err();
+        assert!(error.contains("contradicts"), "{op}: {error}");
+        t.document["gates"][i]["controls"] = json!({"min":c,"max":c});
+        let error = load(&t.document).unwrap_err();
+        assert!(error.contains("contradicts"), "{op}: {error}");
+    }
+}

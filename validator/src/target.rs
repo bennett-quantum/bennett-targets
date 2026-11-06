@@ -200,7 +200,7 @@ impl Target {
             self.expression(&g["epsilon"], &["k", "c", "eps"], true)?;
             self.costs(&g["cost"], &["k", "c", "eps"])?;
             if !expr::uses_eps(&g["epsilon"])
-                && self.constant_zero(&g["epsilon"])?
+                && self.zero_in_context(&g["epsilon"], &Bindings::new())?
                 && expr::uses_eps(&g["cost"])
             {
                 return Err(
@@ -208,7 +208,7 @@ impl Target {
                 );
             }
             if g.get("realisation_model").is_some() {
-                self.realisation_model(g)?;
+                self.realisation_model(g, None)?;
             }
         }
         let mut names = std::collections::BTreeSet::new();
@@ -305,11 +305,11 @@ impl Target {
         }
         Ok(())
     }
-    pub(crate) fn constant_zero(&self, v: &Value) -> Result<bool> {
-        if contains_variable(v) {
+    pub(crate) fn zero_in_context(&self, v: &Value, env: &Bindings) -> Result<bool> {
+        if contains_unbound(v, env) {
             return Ok(false);
         }
-        Ok(expr::eval(v, &Bindings::new(), &self.document["tables"])?.is_zero())
+        Ok(expr::cost(v, env, &self.document["tables"])?.is_zero())
     }
     pub fn class(&self, c: &str) -> Result<()> {
         if self.document["classes"].get(c).is_some() {
@@ -338,7 +338,7 @@ impl Target {
     }
     fn expression(&self, v: &Value, vars: &[&str], nonnegative: bool) -> Result<()> {
         expr::check(v, vars, &self.document["tables"])?;
-        if !contains_variable(v) {
+        if !contains_unbound(v, &Bindings::new()) {
             if nonnegative {
                 expr::cost(v, &Bindings::new(), &self.document["tables"])?;
             } else {
@@ -433,6 +433,9 @@ impl Target {
                     "§8.1: an entry with epsilon 0 MUST NOT reference eps or log2inv_eps".into(),
                 );
             }
+            if g.get("realisation_model").is_some() {
+                self.realisation_model(g, Some(&env))?;
+            }
             let cost = obj(&g["cost"])?
                 .iter()
                 .map(|(r, e)| Ok((r.clone(), expr::cost(e, &env, &self.document["tables"])?)))
@@ -476,15 +479,19 @@ pub(crate) fn operand_arity(op: &str, k: usize, c: usize, operands: usize) -> Re
 pub(crate) fn covers(v: &Value, c: usize) -> Result<bool> {
     Ok(c >= expr::integer(&v["min"])? && bound(&v["max"])?.is_none_or(|max| c <= max))
 }
-fn contains_variable(v: &Value) -> bool {
+fn contains_unbound(v: &Value, env: &Bindings) -> bool {
     match v {
         Value::Object(o) => {
-            o.contains_key("var")
-                || o.contains_key("table")
-                || o.get("op").is_some_and(|x| x == "log2inv_eps")
-                || o.values().any(contains_variable)
+            o.get("var")
+                .and_then(Value::as_str)
+                .is_some_and(|name| !env.contains_key(name))
+                || o.get("index")
+                    .and_then(Value::as_str)
+                    .is_some_and(|index| !env.contains_key(if index == "k" { "k" } else { "eps" }))
+                || (o.get("op").is_some_and(|x| x == "log2inv_eps") && !env.contains_key("eps"))
+                || o.values().any(|v| contains_unbound(v, env))
         }
-        Value::Array(a) => a.iter().any(contains_variable),
+        Value::Array(a) => a.iter().any(|v| contains_unbound(v, env)),
         _ => false,
     }
 }

@@ -4,6 +4,7 @@
 //! control_models,data}. The applied 0.9 text adds operand_map; it is accepted
 //! here only as a verified operand permutation.
 use crate::{
+    expr::{Bindings, Rational},
     json::Result,
     target::{arr, covers, fields, obj, targets, text},
     Target,
@@ -12,7 +13,7 @@ use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{One, Zero};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const VERSION: &str = "bennett.native-model/1";
 const UNPUBLISHED: &str = "0.9 publishes no encoding for it";
@@ -57,20 +58,18 @@ fn rational_leaf(v: &Value) -> Result<Option<BigRational>> {
 }
 
 /// Validate an entry expression; return its exact value when it lies in the
-/// Gaussian-rational fragment (no variable, pi, sqrt, exp, sin or cos).
-fn expression(v: &Value, vars: &BTreeSet<&str>) -> Result<Option<Complex>> {
+/// Gaussian-rational fragment (bound rational variables, no pi, sqrt, exp, sin or cos).
+fn expression(v: &Value, vars: &BTreeMap<&str, Option<&Rational>>) -> Result<Option<Complex>> {
     if let Some(r) = rational_leaf(v)? {
         return Ok(Some((r, BigRational::zero())));
     }
     let o = obj(v)?;
     if o.len() == 1 && o.contains_key("var") {
         let name = text(&o["var"])?;
-        if !vars.contains(name) {
-            return Err(format!(
-                "§8.3 K86: model variable {name} is not a declared parameter_bindings name"
-            ));
-        }
-        return Ok(None);
+        let value = vars.get(name).ok_or_else(|| {
+            format!("§8.3 K86: model variable {name} is not a declared parameter_bindings name")
+        })?;
+        return Ok(value.map(|r| (r.clone(), BigRational::zero())));
     }
     fields(v, &["op", "args"], &[])?;
     let op = text(&o["op"])?;
@@ -155,7 +154,7 @@ fn ideal(op: &str) -> Option<Vec<Vec<Complex>>> {
 
 impl Target {
     /// §8.3 K86: check one gates entry's realisation_model.
-    pub(crate) fn realisation_model(&self, gate: &Value) -> Result<()> {
+    pub(crate) fn realisation_model(&self, gate: &Value, context: Option<&Bindings>) -> Result<()> {
         let m = &gate["realisation_model"];
         let version = obj(m)?
             .get("version")
@@ -206,12 +205,22 @@ impl Target {
         if basis.len() != arity || arr(&m["basis"])?.len() != arity {
             return Err("§8.3 K86: basis names arity distinct operand bits".into());
         }
-        let exact = self.constant_zero(&gate["epsilon"])?;
+        // At schema load only opcode-fixed k and singleton c are known. All
+        // other contexts are checked again when native matching resolves them.
+        let mut static_context = Bindings::new();
+        if op != "mcx" {
+            static_context.insert("k".into(), Rational::from_integer(own(op).into()));
+        }
+        if gate["controls"]["min"] == gate["controls"]["max"] {
+            static_context.insert("c".into(), crate::expr::number(&gate["controls"]["min"])?);
+        }
+        let context = context.unwrap_or(&static_context);
+        let exact = self.zero_in_context(&gate["epsilon"], context)?;
         let mut allowed = vec!["k", "c", "eps"];
         if gate.get("params").is_some() {
             allowed.push("theta");
         }
-        let mut vars = BTreeSet::new();
+        let mut vars = BTreeMap::new();
         for (name, binding) in obj(&m["parameter_bindings"])? {
             let binding = text(binding)?;
             if !allowed.contains(&binding) {
@@ -224,7 +233,7 @@ impl Target {
                     "§8.3 K86/§8.1: eps is bound only where evaluated epsilon is positive".into(),
                 );
             }
-            vars.insert(name.as_str());
+            vars.insert(name.as_str(), context.get(binding));
         }
         fields(&m["data"], &["matrix"], &[]).map_err(|e| {
             format!("§8.3 K86: data carries the phase-bearing matrix; other representations: {UNPUBLISHED}: {e}")
@@ -334,7 +343,7 @@ mod tests {
 
     #[test]
     fn native_model_expression_arithmetic_is_exact_complex_arithmetic() {
-        let vars = BTreeSet::new();
+        let vars = BTreeMap::new();
         let i = json!({"op":"i","args":[]});
         let one = json!(["1", "1"]);
         for (op, a, b, expected) in [

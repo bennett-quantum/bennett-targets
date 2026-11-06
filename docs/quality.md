@@ -178,10 +178,10 @@ No deliberately worse file was written into the working tree.
     "validator/src/json.rs": {"complexity": 73, "lengths": [107, 66, 36, 14, 10, 3], "wrappers": 0},
     "validator/src/lib.rs": {"complexity": 2, "lengths": [6, 3], "wrappers": 0},
     "validator/src/main.rs": {"complexity": 28, "lengths": [49, 9], "wrappers": 0},
-    "validator/src/model.rs": {"complexity": 108, "lengths": [134, 51, 37, 35, 27, 24, 7, 3], "wrappers": 0},
+    "validator/src/model.rs": {"complexity": 111, "lengths": [144, 49, 37, 35, 27, 24, 7, 3], "wrappers": 0},
     "validator/src/query.rs": {"complexity": 15, "lengths": [12, 12, 11], "wrappers": 0},
     "validator/src/runtime.rs": {"complexity": 270, "lengths": [191, 152, 23, 10, 8, 8, 4, 4], "wrappers": 0},
-    "validator/src/target.rs": {"complexity": 265, "lengths": [220, 55, 21, 17, 16, 14, 12, 12, 11, 11, 10, 8, 7, 7, 7, 7, 7, 6, 6, 3, 3, 3, 3], "wrappers": 1},
+    "validator/src/target.rs": {"complexity": 272, "lengths": [220, 58, 21, 17, 16, 16, 14, 12, 11, 11, 10, 8, 7, 7, 7, 7, 7, 6, 6, 3, 3, 3, 3], "wrappers": 1},
     "validator/src/topology.rs": {"complexity": 78, "lengths": [54, 45, 28, 24, 11, 4], "wrappers": 0},
     "validator/tests/cases/canonical.rs": {"complexity": 8, "lengths": [34, 19, 10], "wrappers": 0},
     "validator/tests/cases/cli.rs": {"complexity": 10, "lengths": [55, 37, 36, 33, 12, 3], "wrappers": 0},
@@ -190,7 +190,7 @@ No deliberately worse file was written into the working tree.
     "validator/tests/cases/importers.rs": {"complexity": 17, "lengths": [57, 50, 43, 40, 39, 27, 25, 21, 9, 8, 3], "wrappers": 0},
     "validator/tests/cases/models.rs": {"complexity": 30, "lengths": [40, 30, 19, 17, 17], "wrappers": 0},
     "validator/tests/cases/pins.rs": {"complexity": 2, "lengths": [19], "wrappers": 0},
-    "validator/tests/cases/review_round2.rs": {"complexity": 6, "lengths": [69, 46, 42, 23, 21, 11, 8, 7, 6, 3, 3, 3], "wrappers": 0},
+    "validator/tests/cases/review_round2.rs": {"complexity": 10, "lengths": [69, 46, 42, 27, 26, 26, 23, 22, 21, 11, 8, 7, 6, 3, 3, 3], "wrappers": 0},
     "validator/tests/cases/runtime.rs": {"complexity": 34, "lengths": [59, 40, 37, 33, 31, 30, 29, 24, 20, 17, 15, 15, 9, 7, 6], "wrappers": 0},
     "validator/tests/cases/suite_e.rs": {"complexity": 57, "lengths": [218, 33, 12, 7, 6, 3], "wrappers": 0},
     "validator/tests/cases/target09.rs": {"complexity": 14, "lengths": [49, 48, 20, 18, 16, 15, 15, 13, 12, 11, 10, 10, 9, 8, 8, 7, 7, 7, 3, 3, 3, 3, 3], "wrappers": 0},
@@ -228,3 +228,35 @@ These commands use the headless job environment above. LLVM coverage remains the
 Python gate and documents the existing floating-point test bound. The full
 pinned consumer/push gate and independent/council review remain the orchestrator's
 merge checks; no new consumer agreement is claimed here.
+
+
+## Evaluated-epsilon model checks
+
+Verified 2026-11-06T07:21:04Z against pinned ISA ecaaac060c44e317d1181345fa6b8e38c096c099
+§§4.4/8.1/8.3 and the accepted K86 evaluated-epsilon rule in
+`bennett/docs/council/contract-checker-native-model-2026-11-02/round-2/doc.md`.
+The pin predates K86; b-targets-5jl still owns selecting its published oracle.
+The earlier `origin/main..main` native-model fix shares this root cause.
+
+Three new tests failed before the fix: loading a contradictory -X with epsilon
+`k`, matching a contradictory model at achieved zero, and binding `eps` in a
+resolved exact model. Loading now uses opcode-fixed `k` and singleton-control
+bindings when available; native matching checks the actual evaluated epsilon
+and resolves rational model parameter aliases before returning a charge.
+Unresolved analytical model expressions remain a checker obligation. Correct X
+models with expression-valued epsilon and legal positive-epsilon -X contexts
+remain admitted. Additional tests cover `k-k`, `c-c`, table-selected zero,
+controlled X-family forms and post-load document mutations.
+
+`timeout 60s cargo test --offline --manifest-path validator/Cargo.toml -j3 --test integration review_round2:: -- --test-threads=4`
+passed all nine tests (the existing five plus four new model regressions).
+`timeout 90s cargo clippy --offline --manifest-path validator/Cargo.toml -j3 --all-targets -- -D warnings`
+and formatting passed. Before the fourth test, the complete Rust run passed
+68 tests (2 unit and 66 integration).
+
+The explicit baseline update above is limited to model.rs, target.rs and
+review_round2.rs, measured with `python3 -B scripts/quality_ratchet.py --measure`.
+It accounts for context-aware model checks, the binding-aware epsilon predicate,
+and their regression tests. The ratchet algorithm, litter allowance and
+identifier allowance are unchanged; these baseline changes need the same
+independent review as the correctness fix. No function exceeds 300 lines.
