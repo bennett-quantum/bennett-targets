@@ -45,7 +45,7 @@ fn optional_params_is_an_array_when_present() {
 fn schema_rejects_invalid_class_and_capability_fields() {
     use bennett_targets_validator::{json, Target};
     use serde_json::json;
-    let base = json::parse(include_str!("../../../targets/ideal-all-to-all.json")).unwrap();
+    let base = json::parse(include_str!("../../../targets/ideal-quantum-circuit.json")).unwrap();
     for (pointer, value, expected) in [
         ("/classes", json!({}), "classes must not be empty"),
         (

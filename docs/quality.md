@@ -191,11 +191,11 @@ No deliberately worse file was written into the working tree.
     "validator/tests/cases/contract.rs": {"complexity": 3, "lengths": [34, 11, 11, 7, 5], "wrappers": 0},
     "validator/tests/cases/expressions.rs": {"complexity": 1, "lengths": [35, 11], "wrappers": 0},
     "validator/tests/cases/importers.rs": {"complexity": 17, "lengths": [57, 50, 43, 40, 39, 27, 25, 21, 9, 8, 3], "wrappers": 0},
-    "validator/tests/cases/models.rs": {"complexity": 30, "lengths": [40, 30, 19, 17, 17], "wrappers": 0},
+    "validator/tests/cases/models.rs": {"complexity": 31, "lengths": [40, 30, 19, 17, 17, 16], "wrappers": 0},
     "validator/tests/cases/pins.rs": {"complexity": 11, "lengths": [28, 26, 25, 19, 17, 13, 10, 7, 3], "wrappers": 0},
     "validator/tests/cases/review_round2.rs": {"complexity": 29, "lengths": [69, 46, 42, 40, 29, 27, 26, 26, 23, 22, 22, 22, 21, 18, 17, 14, 13, 13, 12, 11, 10, 9, 8, 7, 6, 3, 3, 3], "wrappers": 0},
-    "validator/tests/cases/runtime.rs": {"complexity": 34, "lengths": [59, 40, 37, 33, 31, 30, 29, 24, 20, 17, 15, 15, 9, 7, 6], "wrappers": 0},
-    "validator/tests/cases/suite_e.rs": {"complexity": 57, "lengths": [218, 33, 12, 7, 6, 3], "wrappers": 0},
+    "validator/tests/cases/runtime.rs": {"complexity": 34, "lengths": [59, 40, 37, 33, 31, 30, 29, 24, 20, 17, 15, 15, 9, 7, 7], "wrappers": 0},
+    "validator/tests/cases/suite_e.rs": {"complexity": 57, "lengths": [219, 33, 12, 7, 6, 3], "wrappers": 0},
     "validator/tests/cases/target09.rs": {"complexity": 14, "lengths": [49, 48, 20, 18, 16, 15, 15, 13, 12, 11, 10, 10, 9, 8, 8, 7, 7, 7, 3, 3, 3, 3, 3], "wrappers": 0},
     "validator/tests/integration.rs": {"complexity": 0, "lengths": [], "wrappers": 0},
     "validator/tests/support/pins.rs": {"complexity": 14, "lengths": [67, 7], "wrappers": 0}
@@ -400,3 +400,28 @@ The pinned gate tool supports `run --repo <main-checkout> --sha <commit>` for
 a committed branch SHA. That runs all seven checks under isolation without
 pushing; its per-check results belong in the main checkout's
 `.tmp/gate/records/<commit>.json` and this job's ignored progress file.
+
+
+## Ideal circuit target publication
+
+The renamed `ideal-quantum-circuit.json` retains the previous canonical JSON
+bytes and SHA-256 `d602ef018d413ffcdea8f0334acbb0b6dd373ba09a325665afb181fa9f6e0cbc`.
+Red-first integration checks failed for the missing published filename and
+required description before the rename. The updated model/provenance check and
+a new description check cover both READMEs and the ideal provenance sidecar.
+The published topology case still asserts that absent topology permits the
+non-adjacent placement; its descriptive fixture label is diagnostic context.
+
+`cargo test --offline --manifest-path validator/Cargo.toml -j2 --test integration -- --test-threads=2`
+passed **80 integration tests**, including all seventeen executable published
+E scenarios. Formatting, integration-target strict Clippy and the quality
+ratchet passed. Only the owned `models.rs`, `runtime.rs` and `suite_e.rs` baseline
+rows above changed: one new description test and formatting for the longer
+filename/placement assertion. Other baseline rows and allowances are unchanged.
+
+This is integration evidence, not a full-gate receipt. The embedded unit test
+in `validator/src/model.rs` and the consumer harness in `scripts/verify.py`
+still name the removed artifact; both are outside this publication child's
+owned paths and are tracked by `bennett-targets-yb5`. They must migrate before
+the default Rust suite and consumer gate can pass. `docs/verification.json`
+remains historical until the corrected harness is run.

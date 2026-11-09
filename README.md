@@ -4,6 +4,11 @@ Independent Bennett ISA 0.9 §8 (target 0.9) target validator, canonical descrip
 Qualtran/Azure adapters. See [PLAN](docs/PLAN.md),
 [models](targets/README.md), and [field mappings](importers/README.md).
 
+`targets/ideal-quantum-circuit.json` describes an ideal quantum circuit with ideal logical qubits, implementing the standard quantum circuit model.
+Its numeric values are illustrative; the model retains unbounded controls and
+logical-qubit capacity, unrestricted connectivity and exact gates. See its
+[provenance](targets/ideal-quantum-circuit.provenance.md) for field derivations.
+
 [Ecosystem handoff](../bennett/HANDOFF.md).
 
 Run `scripts/pre-push` from this checkout for the pinned consumer gate. For the

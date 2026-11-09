@@ -3,7 +3,7 @@ use bennett_targets_validator::{expr, importers, json, Target};
 use serde_json::{json, Value};
 
 fn base() -> Value {
-    json::parse(include_str!("../../../targets/ideal-all-to-all.json")).unwrap()
+    json::parse(include_str!("../../../targets/ideal-quantum-circuit.json")).unwrap()
 }
 fn load(d: &Value) -> Result<Target, String> {
     Target::load(&json::canonical(d).unwrap())

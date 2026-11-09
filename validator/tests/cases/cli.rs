@@ -166,7 +166,7 @@ fn cli_imports_real_samples_into_loadable_targets() {
     ] {
         let output = Command::new(binary())
             .arg(command)
-            .arg(root.join("targets/ideal-all-to-all.json"))
+            .arg(root.join("targets/ideal-quantum-circuit.json"))
             .arg(root.join("importers/fixtures").join(filename))
             .output()
             .unwrap();

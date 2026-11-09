@@ -3,13 +3,14 @@
 Four hand-derived canonical descriptions, each with a `.provenance.md` sidecar
 covering every numeric field. All hardware values are explicitly illustrative.
 
-- `ideal-all-to-all.json`: exact ideal simulator with unbounded logical wires.
+- `ideal-quantum-circuit.json`: an ideal quantum circuit with ideal logical qubits, implementing the standard quantum circuit model.
+  Controls and logical-qubit capacity are unbounded; connectivity is unrestricted.
 - `superconducting-grid-2d-illustrative.json`: the 4×4 grid plus buffer row with
   an ISA 0.9 §8.3 `topology`, and a line-routed ccx scheme. The VM refuses it
   (`unknown field topology`, b-targets-dt2), so only the validator checks it.
 - `superconducting-grid-illustrative.json`: the same classes and timings with no
-  topology, so §8.2 reads it as all-to-all; kept so the VM can execute it.
-- `trapped-ion-illustrative.json`: finite all-to-all chain with serial contention.
+  topology, so §8.2 imposes no connectivity restriction; kept so the VM can execute it.
+- `trapped-ion-illustrative.json`: finite fully connected chain with serial contention.
 
 Stored bytes are RFC 8785 with no trailing LF. Run the validator and
 `scripts/verify.py` headlessly. Every model the VM can load executes the published registers

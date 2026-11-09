@@ -1,4 +1,4 @@
-# ideal-all-to-all: provenance
+# ideal-quantum-circuit: provenance
 
 Every numeric value is **illustrative**, hand-derived for deterministic tests;
 these are vendor-neutral models, not claims about a commercial device.
@@ -26,7 +26,9 @@ measurement is permitted; objective is lexicographic with no numeric weights.
 The clocks, capacity and cost weights are chosen independently. There is no
 inferred stochastic-error or code-distance model. No cost belongs to a scheme.
 
-Ideal simulator: all-to-all logical wires; unbounded controls and capacity.
+This model describes an ideal quantum circuit with ideal logical qubits, implementing the standard quantum circuit model.
+Controls and logical-qubit capacity are unbounded; no connectivity restriction
+is imposed.
 The unit second is an illustrative clock unit, not a measured duration.
 
 ## Exact numeric source ledger
