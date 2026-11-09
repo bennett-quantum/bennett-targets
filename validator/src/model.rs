@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn resolved_model_context_requires_every_declared_binding() {
-        let t = Target::load(include_str!("../../targets/ideal-all-to-all.json")).unwrap();
+        let t = Target::load(include_str!("../../targets/ideal-quantum-circuit.json")).unwrap();
         let mut gate = t.document["gates"][0].clone();
         gate["op"] = json!("rx");
         gate["params"] = json!(["theta"]);

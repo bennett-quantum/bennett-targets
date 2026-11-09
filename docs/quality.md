@@ -419,9 +419,14 @@ ratchet passed. Only the owned `models.rs`, `runtime.rs` and `suite_e.rs` baseli
 rows above changed: one new description test and formatting for the longer
 filename/placement assertion. Other baseline rows and allowances are unchanged.
 
-This is integration evidence, not a full-gate receipt. The embedded unit test
-in `validator/src/model.rs` and the consumer harness in `scripts/verify.py`
-still name the removed artifact; both are outside this publication child's
-owned paths and are tracked by `bennett-targets-yb5`. They must migrate before
-the default Rust suite and consumer gate can pass. `docs/verification.json`
-remains historical until the corrected harness is run.
+The remaining embedded unit-test include and consumer-harness filename
+references now use `ideal-quantum-circuit.json`. The default command
+`cargo test --offline --manifest-path validator/Cargo.toml` passed all **84 tests**
+(4 unit, 80 integration), with none ignored. A focused execution of the actual
+model-run, four-importer and exact timing/occupancy sections of
+`scripts/verify.py` also passed against the pinned VM. The ideal model still
+reports two gates, two peak logical qubits, time 9 and qubit occupancy 14.
+The 2D-grid model retains its existing recorded VM topology refusal; the
+absent-topology semantics strings are unchanged. This is focused consumer
+evidence, not a full-gate receipt. `docs/verification.json` remains historical
+until the full corrected harness is run.
