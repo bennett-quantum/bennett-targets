@@ -30,7 +30,7 @@ Physical intent: a 4 × 4 nearest-neighbour superconducting data grid and a
 four-wire buffer. All values are illustrative. classes.buffer.capacity=4,
 qubit_second=0.25 and dirty_rate=0.25 are illustrative. This JSON carries the
 class, capacity and timing projection only, with no topology, so §8.2 reads it
-as all-to-all: do not use it as a routing-valid hardware model. The complete
+as having unrestricted connectivity: do not use it as a routing-valid hardware model. The complete
 grid under ISA 0.9 §8.3 is `superconducting-grid-2d-illustrative.json`; this
 projection stays because a VM that lacks topology can still execute it.
 

@@ -271,7 +271,8 @@ fn repeat_indices_can_be_signed_in_parameter_expressions() {
 }
 
 fn scheme_target() -> Target {
-    let mut document = json::parse(include_str!("../../../targets/ideal-all-to-all.json")).unwrap();
+    let mut document =
+        json::parse(include_str!("../../../targets/ideal-quantum-circuit.json")).unwrap();
     document["gates"] = json!([{"op":"cx","classes":["*"],"controls":{"min":1,"max":1},"epsilon":0,"cost":{"time":1}}]);
     document["schemes"] = json!([{"name":"wire-probe","realises":{"op":"swap","controls":{"min":0,"max":0}},"ancillae":{"count":0,"class":"data","state":"clean"},"template":[{"gate":"cx","wires":["t","t2"]}]}]);
     Target::load(&json::canonical(&document).unwrap()).unwrap()

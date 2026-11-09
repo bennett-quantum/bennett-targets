@@ -81,13 +81,14 @@ fn check_scenarios(root: &Path) {
                     err.starts_with(expected["native_cx_non_adjacent"].as_str().unwrap()),
                     "{err}"
                 );
-                assert_eq!(expected["absent_topology"], "all-to-all");
                 let mut open = t.document.clone();
                 open.as_object_mut().unwrap().remove("topology");
-                Target::load(&json::canonical(&open).unwrap())
-                    .unwrap()
-                    .check_placement(&pair("non_adjacent"))
-                    .unwrap();
+                let open = Target::load(&json::canonical(&open).unwrap()).unwrap();
+                assert!(
+                    open.check_placement(&pair("non_adjacent")).is_ok(),
+                    "absent topology must permit the placement: {}",
+                    expected["absent_topology"]
+                );
             }
             "E-epsilon-zero-entry" | "E-mbu-must-be-false" | "E-target-staged-probe" => {
                 let input =

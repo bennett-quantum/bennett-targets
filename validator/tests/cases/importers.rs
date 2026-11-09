@@ -103,7 +103,7 @@ fn importer_rejects_unit_mismatch_and_preserves_huge_counts() {
 }
 
 fn ideal() -> Target {
-    Target::load(include_str!("../../../targets/ideal-all-to-all.json")).unwrap()
+    Target::load(include_str!("../../../targets/ideal-quantum-circuit.json")).unwrap()
 }
 
 /// North Star §7: not-aligned quantities import as new named resources. A

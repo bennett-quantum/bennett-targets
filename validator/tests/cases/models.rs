@@ -57,7 +57,7 @@ fn check_numeric_provenance(document: &Value, sidecar: &str) -> Result<(), Strin
 fn models_are_canonical_and_have_provenance() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../targets");
     for name in [
-        "ideal-all-to-all",
+        "ideal-quantum-circuit",
         "superconducting-grid-illustrative",
         "superconducting-grid-2d-illustrative",
         "trapped-ion-illustrative",
@@ -69,6 +69,24 @@ fn models_are_canonical_and_have_provenance() {
         assert!(p.contains("illustrative"));
         check_numeric_provenance(&target.document, &p)
             .unwrap_or_else(|error| panic!("{name}: {error}"));
+    }
+}
+
+#[test]
+fn ideal_quantum_circuit_description_is_published() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let description = "an ideal quantum circuit with ideal logical qubits, implementing the standard quantum circuit model";
+    for path in [
+        root.join("README.md"),
+        root.join("targets/README.md"),
+        root.join("targets/ideal-quantum-circuit.provenance.md"),
+    ] {
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            text.contains(description),
+            "{}: missing ideal circuit description",
+            path.display()
+        );
     }
 }
 

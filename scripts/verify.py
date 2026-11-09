@@ -240,7 +240,7 @@ for path in sorted((ROOT / 'targets').glob('*.json')):
     REPORT['model_runs'].append({'name':path.name,'hash':hashlib.sha256(path.read_bytes()).hexdigest(),'resources':data['target_resources']})
 
 for command, filename in [('import-qualtran','qualtran-gate-counts.json'),('import-azure','azure-qubit-params.json'),('import-azure','azure-nonzero-error.json'),('import-azure','azure-majorana.json')]:
-    result = run(VALIDATOR, command, ROOT / 'targets/ideal-all-to-all.json', ROOT / 'importers/fixtures' / filename)
+    result = run(VALIDATOR, command, ROOT / 'targets/ideal-quantum-circuit.json', ROOT / 'importers/fixtures' / filename)
     require(result.returncode == 0, result.stderr)
     imported = json.loads(result.stdout)
     path = WORK / (filename + '.target.json')
@@ -328,7 +328,7 @@ inc8_blocked = [r for r in REPORT['spec_example_target_runs'] if r['state'] != '
 
 # Exact timing/occupancy expectations derived from seven controller instructions,
 # two X leaves and two live wires over five controller steps plus both leaves.
-expected_times = {'ideal-all-to-all.json':('9','14'), 'superconducting-grid-illustrative.json':('0.00011','0.00018'), 'superconducting-grid-2d-illustrative.json':('0.00011','0.00018'), 'trapped-ion-illustrative.json':('0.000027','0.00005')}
+expected_times = {'ideal-quantum-circuit.json':('9','14'), 'superconducting-grid-illustrative.json':('0.00011','0.00018'), 'superconducting-grid-2d-illustrative.json':('0.00011','0.00018'), 'trapped-ion-illustrative.json':('0.000027','0.00005')}
 for model in REPORT['model_runs']:
     time, occupancy = expected_times[model['name']]
     require(Fraction(model['resources']['time']) == Fraction(time), model['name'] + ': makespan')

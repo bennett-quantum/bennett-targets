@@ -26,7 +26,7 @@ measurement is permitted; objective is lexicographic with no numeric weights.
 The clocks, capacity and cost weights are chosen independently. There is no
 inferred stochastic-error or code-distance model. No cost belongs to a scheme.
 
-Physical intent: illustrative all-to-all ion chain with a shared entangling
+Physical intent: illustrative fully connected ion chain with a shared entangling
 operation controller (max_parallel=1). This models serial contention only.
 
 ## Exact numeric source ledger
